@@ -683,7 +683,7 @@ class TranslationSession:
         display_name = member.display_name
 
         sections = [
-            f"### {display_name}",
+            f"### 🗣️ {display_name}",
             f"**Original · {original_language}**: {transcript}",
         ]
 

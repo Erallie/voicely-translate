@@ -144,7 +144,7 @@ live transcription and translation.
 
 The Service is not intended to maintain a permanent archive of users'
 voice recordings. Temporary audio files or buffers may exist during
-processing and should be deleted or discarded when they are no longer
+processing and are deleted or discarded when they are no longer
 required for the active processing workflow.
 
 Third-party providers involved in processing may have their own
@@ -228,7 +228,7 @@ reasonably necessary to operate the Service, maintain accurate balances,
 prevent duplicate credits, resolve disputes, comply with legal
 obligations, and protect against abuse.
 
-Temporary processing data should be discarded when it is no longer
+Temporary processing data is discarded when it is no longer
 required for the processing workflow.
 
 Where third-party providers process information, their own retention

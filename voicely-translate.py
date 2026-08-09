@@ -1289,7 +1289,7 @@ class TranslationSession:
                 "If the audio contains only laughter, giggling, chuckling, grunting, groaning, "
                 "sighing, humming, or other nonverbal vocalizations with no spoken words, "
                 "Or if the only speech is a hesitation or thinking sound such as hmm, hm, mm, "
-                "mmm, uh, um, erm, or similar filler sounds,"
+                "mmm, uh, um, erm, or similar filler sounds, or the equivalent in any language,"
                 "return exactly [NONVERBAL] and nothing else. "
                 "However, if the sound is part of a sentence, whether at the beginning or in the middle, leave it as is. "
                 "For example, if the speaker says 'uh, I think we should go', or 'I think we should, uh, go to the store', transcribe it as is, including the 'uh'."

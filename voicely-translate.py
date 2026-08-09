@@ -1268,8 +1268,8 @@ class TranslationSession:
                 "Or if the only speech is a hesitation or thinking sound such as hmm, hm, mm, "
                 "mmm, uh, um, erm, or similar filler sounds,"
                 "return exactly [NONVERBAL] and nothing else. "
-                "However, if the sound is part of a sentence, whether at the beginning or the middle, leave it as is. "
-                "For example, if the speaker says 'uh, I think we should go', or 'I, uh, think we should go' transcribe it as is, including the 'uh'."
+                "However, if the sound is part of a sentence, whether at the beginning or in the middle, leave it as is. "
+                "For example, if the speaker says 'uh, I think we should go', or 'I think we should, uh, go to the store', transcribe it as is, including the 'uh'."
             ),
         )
 

@@ -2068,15 +2068,10 @@ class TranslationBot(commands.Bot):
     voice_bridge: VoiceWorkerBridge
 
     async def setup_hook(self) -> None:
-        self.voice_bridge = VoiceWorkerBridge(self)
-        await self.voice_bridge.start()
+        self.tree.clear_commands(guild=None)
+        await self.tree.sync()
 
-        await self.add_cog(TranslationCommands(self))
-
-        synced_commands = await self.tree.sync()
-        print(
-            f"[COMMANDS] Synced {len(synced_commands)} global slash command(s)."
-        )
+        print("[COMMANDS] Cleared global slash commands.")
 
     async def close(self) -> None:
         if hasattr(self, "voice_bridge"):

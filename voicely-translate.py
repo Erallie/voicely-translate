@@ -1154,6 +1154,7 @@ class TranslationSession:
                         f"[CREDITS] Ignoring speech in guild {guild_id}; "
                         "no trial or paid credit remains."
                     )
+                    await self._handle_credit_exhausted()
                     return
 
                 transcript, transcription_cost = await self._transcribe(
@@ -1161,17 +1162,35 @@ class TranslationSession:
                     target_languages,
                 )
 
+                # Always charge the transcription request as soon as OpenAI
+                # returns its usage, even when the resulting transcript is empty
+                # or [NONVERBAL]. The audio and output tokens were still billed.
                 record_api_usage(
                     guild_id,
                     transcription_microusd=transcription_cost,
                 )
+
+                if guild_id not in UNLIMITED_CREDIT_GUILD_IDS:
+                    remaining_credit = get_available_credit_microusd(guild_id)
+                    print(
+                        f"[CREDITS] Transcription charged "
+                        f"{format_credits(transcription_cost)} credits; "
+                        f"remaining={format_credits(remaining_credit)} credits."
+                    )
+
+                    # Do not start another paid API request after transcription
+                    # has consumed the server's final credit.
+                    if remaining_credit <= 0:
+                        await self._handle_credit_exhausted()
+                        return
 
                 if not transcript:
                     return
 
                 if transcript.strip().casefold() == "[nonverbal]":
                     print(
-                        f"[VOICE] Ignoring nonverbal vocalization from {member} ({member.id})."
+                        f"[VOICE] Ignoring nonverbal vocalization from {member} ({member.id}). "
+                        "Transcription usage was still charged."
                     )
                     return
 
@@ -1184,6 +1203,14 @@ class TranslationSession:
                     guild_id,
                     translation_microusd=translation_cost,
                 )
+
+                if guild_id not in UNLIMITED_CREDIT_GUILD_IDS:
+                    remaining_credit = get_available_credit_microusd(guild_id)
+                    print(
+                        f"[CREDITS] Translation charged "
+                        f"{format_credits(translation_cost)} credits; "
+                        f"remaining={format_credits(remaining_credit)} credits."
+                    )
 
                 if self.closed:
                     return

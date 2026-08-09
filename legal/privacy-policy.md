@@ -275,12 +275,8 @@ Updated" date at the top will be revised when changes are made.
 ## 16. Contact
 
 Questions, privacy requests, or concerns about Voicely Translate should
-be directed to the contact method provided by the operator of Voicely
-Translate.
+be directed to Gozar Productions LLC through the official support server or our email:
 
-------------------------------------------------------------------------
+Official support server: https://discord.gozarproductions.com
 
-This Privacy Policy is intended as a general description of the
-Service's data practices and is not legal advice. It should be reviewed
-and customized as necessary for the jurisdictions in which the Service
-is offered.
+Email: contact@gozarproductions.com

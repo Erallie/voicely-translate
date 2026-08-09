@@ -2258,7 +2258,7 @@ class TranslationCommands(commands.Cog):
 
             if interaction.guild.get_member(voicely_text_bot_id) is None:
                 join_message += (
-                    "\nTo read translations out loud, use "
+                    "\n\nTo read translations out loud, use "
                     "[**Voicely Text**](https://discord.com/application-directory/1290741552158609419)."
                 )
 

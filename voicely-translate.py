@@ -57,6 +57,10 @@ VOICE_WORKER_PORT = int(os.environ.get("VOICE_WORKER_PORT", "8765"))
 VOICE_WORKER_START_TIMEOUT = 20.0
 VOICE_WORKER_JOIN_TIMEOUT = 20.0
 
+# Voice worker recovery behavior.
+VOICE_WORKER_RECOVERY_TIMEOUT = 15.0
+VOICE_WORKER_RESTART_DELAY = 1.0
+
 
 # Broad reference list of language tags users can enter with /join, /add,
 # and /remove. This is intentionally not used as a validation whitelist:
@@ -747,49 +751,37 @@ class VoiceWorkerBridge:
         self.worker_ready = asyncio.Event()
         self.pending_joins: dict[int, asyncio.Future] = {}
         self.member_cache: dict[tuple[int, int], discord.Member] = {}
-        self._read_task: asyncio.Task | None = None
+
         self._stdout_task: asyncio.Task | None = None
         self._stderr_task: asyncio.Task | None = None
+        self._worker_watch_task: asyncio.Task | None = None
+        self._restart_lock = asyncio.Lock()
+        self._stopping = False
+        self._worker_path: Path | None = None
 
     async def start(self) -> None:
+        self._stopping = False
+
         self.server = await asyncio.start_server(
             self._handle_connection,
             VOICE_WORKER_HOST,
             VOICE_WORKER_PORT,
         )
 
-        worker_path = Path(__file__).resolve().with_name("voice-worker.mjs")
+        self._worker_path = Path(__file__).resolve().with_name("voice-worker.mjs")
 
-        if not worker_path.exists():
+        if not self._worker_path.exists():
             raise RuntimeError(
-                f"Voice worker not found: {worker_path}. "
+                f"Voice worker not found: {self._worker_path}. "
                 "Place voice-worker.mjs beside this Python file."
             )
 
-        env = os.environ.copy()
-        env["VOICE_WORKER_HOST"] = VOICE_WORKER_HOST
-        env["VOICE_WORKER_PORT"] = str(VOICE_WORKER_PORT)
-
-        try:
-            self.worker_process = await asyncio.create_subprocess_exec(
-                "node",
-                str(worker_path),
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                env=env,
-            )
-        except FileNotFoundError as error:
-            raise RuntimeError(
-                "Node.js was not found. Install Node.js 22.12.0 or newer "
-                "and make sure `node` is on PATH."
-            ) from error
-
-        self._stdout_task = asyncio.create_task(
-            self._pipe_worker_output(self.worker_process.stdout, "NODE")
+        print(
+            f"[VOICE BRIDGE] Listening for Node worker on "
+            f"{VOICE_WORKER_HOST}:{VOICE_WORKER_PORT}."
         )
-        self._stderr_task = asyncio.create_task(
-            self._pipe_worker_output(self.worker_process.stderr, "NODE ERROR")
-        )
+
+        await self._start_worker_process(reason="initial startup")
 
         try:
             await asyncio.wait_for(
@@ -804,65 +796,317 @@ class VoiceWorkerBridge:
 
         print("[VOICE BRIDGE] Node voice worker is ready.")
 
+    async def _start_worker_process(self, reason: str) -> None:
+        if self._stopping:
+            return
+
+        async with self._restart_lock:
+            if self._stopping:
+                return
+
+            if (
+                self.worker_process is not None
+                and self.worker_process.returncode is None
+            ):
+                return
+
+            if self._worker_path is None:
+                self._worker_path = Path(__file__).resolve().with_name(
+                    "voice-worker.mjs"
+                )
+
+            env = os.environ.copy()
+            env["VOICE_WORKER_HOST"] = VOICE_WORKER_HOST
+            env["VOICE_WORKER_PORT"] = str(VOICE_WORKER_PORT)
+
+            self.connected.clear()
+            self.worker_ready.clear()
+
+            print(
+                f"[VOICE BRIDGE] Starting Node voice worker "
+                f"({reason})..."
+            )
+
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    "node",
+                    str(self._worker_path),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env=env,
+                )
+            except FileNotFoundError as error:
+                raise RuntimeError(
+                    "Node.js was not found. Install Node.js 22.12.0 or newer "
+                    "and make sure `node` is on PATH."
+                ) from error
+
+            self.worker_process = process
+
+            print(
+                f"[VOICE BRIDGE] Node voice worker started with PID "
+                f"{process.pid}."
+            )
+
+            self._stdout_task = asyncio.create_task(
+                self._pipe_worker_output(process.stdout, "NODE")
+            )
+            self._stderr_task = asyncio.create_task(
+                self._pipe_worker_output(process.stderr, "NODE ERROR")
+            )
+            self._worker_watch_task = asyncio.create_task(
+                self._watch_worker_process(process)
+            )
+
+    async def _watch_worker_process(
+        self,
+        process: asyncio.subprocess.Process,
+    ) -> None:
+        return_code = await process.wait()
+
+        if self.worker_process is process:
+            self.worker_process = None
+
+        if self._stopping:
+            print(
+                f"[VOICE BRIDGE] Node voice worker exited during shutdown "
+                f"with code {return_code}."
+            )
+            return
+
+        print(
+            f"[VOICE BRIDGE ERROR] Node voice worker exited unexpectedly "
+            f"with code {return_code}."
+        )
+
+        self.connected.clear()
+        self.worker_ready.clear()
+
+        await asyncio.sleep(VOICE_WORKER_RESTART_DELAY)
+
+        if self._stopping:
+            return
+
+        try:
+            await self._start_worker_process(
+                reason=f"automatic recovery after exit code {return_code}"
+            )
+        except Exception as error:
+            print(
+                f"[VOICE BRIDGE ERROR] Failed to restart Node voice worker: "
+                f"{error!r}"
+            )
+
+    async def _ensure_worker_ready(self) -> None:
+        if self._stopping:
+            raise RuntimeError("The voice worker is shutting down.")
+
+        if (
+            self.worker_process is None
+            or self.worker_process.returncode is not None
+        ):
+            print(
+                "[VOICE BRIDGE] Worker process is not running; "
+                "starting recovery."
+            )
+            await self._start_worker_process(
+                reason="recovery requested by voice operation"
+            )
+
+        if self.writer is not None and self.worker_ready.is_set():
+            return
+
+        print(
+            "[VOICE BRIDGE] Voice worker is not currently ready; "
+            "waiting for recovery..."
+        )
+
+        try:
+            await asyncio.wait_for(
+                self.worker_ready.wait(),
+                timeout=VOICE_WORKER_RECOVERY_TIMEOUT,
+            )
+        except TimeoutError as error:
+            process_state = "not running"
+
+            if self.worker_process is not None:
+                if self.worker_process.returncode is None:
+                    process_state = (
+                        f"running (PID {self.worker_process.pid}) "
+                        "but not connected"
+                    )
+                else:
+                    process_state = (
+                        f"exited with code {self.worker_process.returncode}"
+                    )
+
+            print(
+                f"[VOICE BRIDGE ERROR] Worker recovery timed out; "
+                f"process state: {process_state}."
+            )
+
+            raise RuntimeError(
+                "The voice worker could not recover in time."
+            ) from error
+
+        if self.writer is None:
+            raise RuntimeError(
+                "The voice worker reported ready but its bridge connection "
+                "is unavailable."
+            )
+
+        print("[VOICE BRIDGE] Voice worker recovery completed.")
+
     async def stop(self) -> None:
+        if self._stopping:
+            return
+
+        self._stopping = True
+        print("[VOICE BRIDGE] Shutting down Node voice worker...")
+
+        # Prevent pending join operations from hanging during shutdown.
+        for future in self.pending_joins.values():
+            if not future.done():
+                future.set_exception(
+                    RuntimeError("The voice worker is shutting down.")
+                )
+
         if self.writer is not None:
             try:
                 await self.send({"type": "shutdown"})
-            except Exception:
-                pass
+                print("[VOICE BRIDGE] Sent shutdown command to Node worker.")
+            except Exception as error:
+                print(
+                    f"[VOICE BRIDGE] Could not send worker shutdown command: "
+                    f"{error!r}"
+                )
 
-            self.writer.close()
+        process = self.worker_process
 
+        if process is not None and process.returncode is None:
             try:
-                await self.writer.wait_closed()
-            except Exception:
-                pass
-
-        if self.worker_process is not None and self.worker_process.returncode is None:
-            try:
-                await asyncio.wait_for(self.worker_process.wait(), timeout=3.0)
+                await asyncio.wait_for(process.wait(), timeout=3.0)
             except TimeoutError:
-                self.worker_process.terminate()
-                await self.worker_process.wait()
+                print(
+                    "[VOICE BRIDGE] Node worker did not exit after shutdown "
+                    "command; terminating it."
+                )
+                process.terminate()
+
+                try:
+                    await asyncio.wait_for(process.wait(), timeout=3.0)
+                except TimeoutError:
+                    print(
+                        "[VOICE BRIDGE] Node worker did not terminate; "
+                        "killing it."
+                    )
+                    process.kill()
+                    await process.wait()
+
+        if self.writer is not None:
+            writer = self.writer
+            self.reader = None
+            self.writer = None
+            self.connected.clear()
+            self.worker_ready.clear()
+
+            try:
+                writer.close()
+                await writer.wait_closed()
+            except Exception:
+                pass
 
         if self.server is not None:
             self.server.close()
             await self.server.wait_closed()
+            self.server = None
+
+        # The watcher checks _stopping and therefore will not restart the worker.
+        if (
+            self._worker_watch_task is not None
+            and not self._worker_watch_task.done()
+            and self._worker_watch_task is not asyncio.current_task()
+        ):
+            try:
+                await asyncio.wait_for(
+                    asyncio.shield(self._worker_watch_task),
+                    timeout=1.0,
+                )
+            except (TimeoutError, asyncio.CancelledError):
+                pass
+
+        print("[VOICE BRIDGE] Node voice worker shutdown complete.")
 
     async def join(self, guild_id: int, channel_id: int) -> None:
-        if not self.worker_ready.is_set() or self.writer is None:
-            raise RuntimeError("The voice worker is not connected.")
+        print(
+            f"[VOICE BRIDGE] Join requested for guild {guild_id}, "
+            f"channel {channel_id}."
+        )
+
+        await self._ensure_worker_ready()
 
         loop = asyncio.get_running_loop()
         future = loop.create_future()
         self.pending_joins[guild_id] = future
 
-        await self.send({
-            "type": "join",
-            "guild_id": str(guild_id),
-            "channel_id": str(channel_id),
-        })
-
         try:
-            await asyncio.wait_for(future, timeout=VOICE_WORKER_JOIN_TIMEOUT)
+            await self.send({
+                "type": "join",
+                "guild_id": str(guild_id),
+                "channel_id": str(channel_id),
+            })
+
+            print(
+                f"[VOICE BRIDGE] Join command sent for guild {guild_id}, "
+                f"channel {channel_id}."
+            )
+
+            await asyncio.wait_for(
+                future,
+                timeout=VOICE_WORKER_JOIN_TIMEOUT,
+            )
+
+        except Exception as error:
+            print(
+                f"[VOICE BRIDGE ERROR] Join failed for guild {guild_id}, "
+                f"channel {channel_id}: {error!r}"
+            )
+            raise
         finally:
             self.pending_joins.pop(guild_id, None)
 
     async def leave(self, guild_id: int) -> None:
-        if self.writer is None:
+        if self._stopping:
             return
 
-        await self.send({
-            "type": "leave",
-            "guild_id": str(guild_id),
-        })
+        if self.writer is None or not self.worker_ready.is_set():
+            print(
+                f"[VOICE BRIDGE] Leave requested for guild {guild_id}, "
+                "but the worker is not connected; nothing to send."
+            )
+            return
+
+        print(f"[VOICE BRIDGE] Sending leave command for guild {guild_id}.")
+
+        try:
+            await self.send({
+                "type": "leave",
+                "guild_id": str(guild_id),
+            })
+        except Exception as error:
+            print(
+                f"[VOICE BRIDGE ERROR] Failed to send leave for guild "
+                f"{guild_id}: {error!r}"
+            )
 
     async def send(self, payload: dict) -> None:
         if self.writer is None:
             raise RuntimeError("The voice worker is not connected.")
 
         self.writer.write(
-            (json.dumps(payload, separators=(",", ":")) + "\n").encode("utf-8")
+            (json.dumps(payload, separators=(",", ":")) + "\n").encode(
+                "utf-8"
+            )
         )
         await self.writer.drain()
 
@@ -871,7 +1115,22 @@ class VoiceWorkerBridge:
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
     ) -> None:
+        peer = writer.get_extra_info("peername")
+
+        if self._stopping:
+            print(
+                f"[VOICE BRIDGE] Rejecting worker connection from {peer} "
+                "because shutdown is in progress."
+            )
+            writer.close()
+            await writer.wait_closed()
+            return
+
         if self.writer is not None:
+            print(
+                f"[VOICE BRIDGE] Rejecting duplicate Node worker "
+                f"connection from {peer}."
+            )
             writer.close()
             await writer.wait_closed()
             return
@@ -879,26 +1138,38 @@ class VoiceWorkerBridge:
         self.reader = reader
         self.writer = writer
         self.connected.set()
-        print("[VOICE BRIDGE] Node worker connected to Python.")
+
+        print(
+            f"[VOICE BRIDGE] Node worker connected to Python"
+            f"{f' from {peer}' if peer else ''}."
+        )
 
         try:
             while True:
                 line = await reader.readline()
 
                 if not line:
+                    print(
+                        "[VOICE BRIDGE] Node worker bridge socket reached EOF."
+                    )
                     break
 
                 try:
                     message = json.loads(line)
                 except json.JSONDecodeError as error:
-                    print(f"[VOICE BRIDGE] Invalid worker message: {error}")
+                    print(
+                        f"[VOICE BRIDGE ERROR] Invalid worker message: {error}"
+                    )
                     continue
 
                 await self._handle_message(message)
+
         except asyncio.CancelledError:
             raise
         except Exception as error:
-            print(f"[VOICE BRIDGE] Worker connection error: {error!r}")
+            print(
+                f"[VOICE BRIDGE ERROR] Worker connection error: {error!r}"
+            )
         finally:
             if self.writer is writer:
                 self.reader = None
@@ -912,13 +1183,45 @@ class VoiceWorkerBridge:
                         RuntimeError("The voice worker disconnected.")
                     )
 
-            print("[VOICE BRIDGE] Node worker disconnected.")
+            if self._stopping:
+                print(
+                    "[VOICE BRIDGE] Node worker disconnected during shutdown."
+                )
+            else:
+                print(
+                    "[VOICE BRIDGE ERROR] Node worker disconnected from "
+                    "Python unexpectedly."
+                )
+
+                # If the process is still alive, it may reconnect itself.
+                # If not, the watcher will restart it. Either way, log the state.
+                if (
+                    self.worker_process is not None
+                    and self.worker_process.returncode is None
+                ):
+                    print(
+                        f"[VOICE BRIDGE] Node worker process is still running "
+                        f"(PID {self.worker_process.pid}); waiting for it to "
+                        "reconnect."
+                    )
+                else:
+                    print(
+                        "[VOICE BRIDGE] Node worker process is not running; "
+                        "automatic restart will be attempted."
+                    )
 
     async def _handle_message(self, message: dict) -> None:
         message_type = message.get("type")
 
         if message_type == "ready":
+            was_ready = self.worker_ready.is_set()
             self.worker_ready.set()
+
+            if was_ready:
+                print("[VOICE BRIDGE] Node worker reported ready again.")
+            else:
+                print("[VOICE BRIDGE] Node worker reported ready.")
+
             return
 
         if message_type == "log":
@@ -938,15 +1241,27 @@ class VoiceWorkerBridge:
             )
             return
 
+        if message_type == "left":
+            print(
+                f"[VOICE] Worker left voice in guild "
+                f"{message.get('guild_id')}."
+            )
+            return
+
         if message_type == "join_error":
             guild_id = int(message["guild_id"])
             future = self.pending_joins.get(guild_id)
-            error = RuntimeError(message.get("message", "Voice join failed."))
+            error = RuntimeError(
+                message.get("message", "Voice join failed.")
+            )
+
+            print(
+                f"[VOICE WORKER ERROR] Join error for guild {guild_id}: "
+                f"{error}"
+            )
 
             if future is not None and not future.done():
                 future.set_exception(error)
-            else:
-                print(f"[VOICE] Join error for guild {guild_id}: {error}")
 
             return
 
@@ -960,6 +1275,11 @@ class VoiceWorkerBridge:
                 f"{message.get('message', 'Unknown voice error')}"
             )
             return
+
+        print(
+            f"[VOICE BRIDGE] Unknown worker message type: "
+            f"{message_type!r}"
+        )
 
     async def _handle_audio(self, message: dict) -> None:
         guild_id = int(message["guild_id"])
@@ -1013,7 +1333,10 @@ class VoiceWorkerBridge:
             if not line:
                 break
 
-            print(f"[{label}] {line.decode('utf-8', errors='replace').rstrip()}")
+            print(
+                f"[{label}] "
+                f"{line.decode('utf-8', errors='replace').rstrip()}"
+            )
 
 
 # ============================================================
@@ -1192,7 +1515,11 @@ class TranslationCommands(commands.Cog):
             )
 
         except Exception as error:
-            print(f"Could not join voice: {error!r}")
+            print(
+                f"[VOICE COMMAND ERROR] /join failed in guild "
+                f"{interaction.guild_id}, channel {voice_channel.id}: "
+                f"{error!r}"
+            )
 
             await interaction.followup.send(
                 f"I couldn't join that voice channel: `{error}`",
@@ -1397,6 +1724,12 @@ async def on_voice_state_update(
         return
 
     if before.channel is not None and after.channel is None:
+        print(
+            f"[VOICE ERROR] Bot was disconnected from voice in guild "
+            f"{member.guild.id} ({member.guild.name}); previous channel="
+            f"{before.channel.id} ({before.channel.name})."
+        )
+
         session = sessions.pop(member.guild.id, None)
 
         if session is not None and not session.closed:
@@ -1404,6 +1737,11 @@ async def on_voice_state_update(
 
             if session.buffer_task:
                 session.buffer_task.cancel()
+
+            print(
+                f"[VOICE] Translation session for guild {member.guild.id} "
+                "was cleaned up after the unexpected voice disconnect."
+            )
 
 
 async def main() -> None:

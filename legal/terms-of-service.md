@@ -215,9 +215,3 @@ be directed to Gozar Productions LLC through the official support server or our 
 Official support server: https://discord.gozarproductions.com
 
 Email: contact@gozarproductions.com
-
-------------------------------------------------------------------------
-
-These Terms are intended as a general service policy and are not legal
-advice. Depending on where the Service is offered and how it operates,
-additional disclosures or terms may be required.

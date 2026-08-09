@@ -575,7 +575,8 @@ class TranslationSession:
             prompt=(
                 f"The speaker is speaking one of these languages: {language_list}. "
                 "Transcribe the speech in the language actually spoken. "
-                "Do not transcribe the speech into any other languages than those listed."
+                "Do not transcribe the speech into any other languages than those listed. "
+                "Favor sentences and phrases that make more sense as something someone would naturally say."
             ),
         )
 

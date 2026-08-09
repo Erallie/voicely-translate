@@ -536,9 +536,9 @@ class TranslationSession:
                 if not transcript:
                     return
 
-                if transcript.strip().casefold() == "[laughter]":
+                if transcript.strip().casefold() == "[nonverbal]":
                     print(
-                        f"[VOICE] Ignoring laughter from {member} ({member.id})."
+                        f"[VOICE] Ignoring nonverbal vocalization from {member} ({member.id})."
                     )
                     return
 
@@ -583,8 +583,12 @@ class TranslationSession:
                 "Transcribe the speech in the language actually spoken. "
                 "Do not transcribe the speech into any other languages than those listed. "
                 "Favor sentences and phrases that make more sense as something someone would naturally say. "
-                "If the audio contains only laughter, giggling, chuckling, or other nonverbal "
-                "laughter with no spoken words, return exactly [LAUGHTER] and nothing else."
+                "If the audio contains only laughter, giggling, chuckling, grunting, groaning, "
+                "sighing, humming, or other nonverbal vocalizations with no spoken words, "
+                "return exactly [NONVERBAL] and nothing else. "
+                "If the only speech is a hesitation or thinking sound such as hmm, hm, mm, "
+                "mmm, uh, um, erm, or similar filler sounds, also return exactly [NONVERBAL] "
+                "and nothing else."
             ),
         )
 

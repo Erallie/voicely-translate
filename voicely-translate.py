@@ -2214,7 +2214,7 @@ class TranslationCommands(commands.Cog):
             )
             return
 
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer()
 
         try:
             session = TranslationSession(

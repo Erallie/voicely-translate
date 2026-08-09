@@ -737,8 +737,8 @@ class TranslationSession:
                 "If the audio contains only laughter, giggling, chuckling, grunting, groaning, "
                 "sighing, humming, or other nonverbal vocalizations with no spoken words, "
                 "return exactly [NONVERBAL] and nothing else. "
-                "If the only speech is a hesitation or thinking sound such as hmm, hm, mm, "
-                "mmm, uh, um, erm, or similar filler sounds, also return exactly [NONVERBAL] "
+                "If the only speech is a hesitation, thinking sound, or a grunt of acknowledgement such as hmm, hm, mm, "
+                "mmm, uh, um, erm, mhmm, or similar filler sounds, also return exactly [NONVERBAL] "
                 "and nothing else."
             ),
         )

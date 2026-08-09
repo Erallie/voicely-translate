@@ -695,7 +695,7 @@ class TranslationSession:
                     f"**`{language}`**: {translated_text}"
                 )
 
-        message = "\n\n".join(sections)
+        message = "\n".join(sections)
 
         for chunk in split_discord_message(message):
             await self.voice_channel.send(

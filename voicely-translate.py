@@ -3,6 +3,7 @@ import base64
 import io
 import json
 import os
+import sqlite3
 import time
 import wave
 from array import array
@@ -60,6 +61,13 @@ VOICE_WORKER_JOIN_TIMEOUT = 20.0
 # Voice worker recovery behavior.
 VOICE_WORKER_RECOVERY_TIMEOUT = 15.0
 VOICE_WORKER_RESTART_DELAY = 1.0
+
+# Per-server idle voice timeout.
+# Values are stored in seconds. 300 seconds = 5 minutes.
+DEFAULT_IDLE_TIMEOUT_SECONDS = 30
+
+# This database will also hold the server credit/token data added later.
+DATABASE_FILE = Path(__file__).resolve().with_name("voicely-translate.db")
 
 
 # Broad reference list of language tags users can enter with /join, /add,
@@ -330,6 +338,80 @@ def contains_speech(pcm: bytes) -> tuple[bool, float, int]:
     return is_speech, speech_ratio, max_consecutive
 
 
+def initialize_database() -> None:
+    """
+    Create the shared per-server database.
+
+    More server-level fields, such as prepaid credit/token information, can
+    be added to this table later without introducing another storage system.
+    """
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS guild_settings (
+                guild_id INTEGER PRIMARY KEY,
+                idle_timeout_seconds INTEGER
+            )
+            """
+        )
+        connection.commit()
+
+
+def get_idle_timeout_seconds(guild_id: int) -> int | None:
+    """
+    Return this server's idle timeout in seconds.
+
+    No database row means the default timeout is used.
+    A NULL idle_timeout_seconds value means the timeout is disabled.
+    """
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        row = connection.execute(
+            """
+            SELECT idle_timeout_seconds
+            FROM guild_settings
+            WHERE guild_id = ?
+            """,
+            (guild_id,),
+        ).fetchone()
+
+    if row is None:
+        return DEFAULT_IDLE_TIMEOUT_SECONDS
+
+    return row[0]
+
+
+def set_idle_timeout_seconds(
+    guild_id: int,
+    timeout_seconds: int | None,
+) -> None:
+    """
+    Save this server's idle timeout.
+
+    timeout_seconds=None disables automatic leaving.
+    """
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        connection.execute(
+            """
+            INSERT INTO guild_settings (
+                guild_id,
+                idle_timeout_seconds
+            )
+            VALUES (?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET
+                idle_timeout_seconds = excluded.idle_timeout_seconds
+            """,
+            (guild_id, timeout_seconds),
+        )
+        connection.commit()
+
+
+def count_human_members(channel: discord.VoiceChannel) -> int:
+    return sum(1 for member in channel.members if not member.bot)
+
+
+initialize_database()
+
+
 def split_discord_message(text: str, limit: int = 1900) -> list[str]:
     """
     Split long translation output without exceeding Discord's 2,000
@@ -413,6 +495,7 @@ class TranslationSession:
 
         self.closed = False
         self.buffer_task = asyncio.create_task(self._buffer_loop())
+        self.idle_timeout_task: asyncio.Task | None = None
 
     def add_languages(self, languages: list[str]) -> list[str]:
         added = []
@@ -438,6 +521,70 @@ class TranslationSession:
                     break
 
         return removed
+
+    def cancel_idle_timeout(self) -> None:
+        if self.idle_timeout_task is not None:
+            self.idle_timeout_task.cancel()
+            self.idle_timeout_task = None
+
+    def update_idle_timeout(self) -> None:
+        if self.closed:
+            return
+
+        if count_human_members(self.voice_channel) > 0:
+            self.cancel_idle_timeout()
+            return
+
+        timeout_seconds = get_idle_timeout_seconds(
+            self.voice_channel.guild.id
+        )
+
+        if timeout_seconds is None:
+            self.cancel_idle_timeout()
+            return
+
+        if (
+            self.idle_timeout_task is None
+            or self.idle_timeout_task.done()
+        ):
+            print(
+                f"[VOICE TIMEOUT] {self.voice_channel.guild.name} has no "
+                f"human users in {self.voice_channel.name}; leaving in "
+                f"{timeout_seconds} second(s)."
+            )
+
+            self.idle_timeout_task = asyncio.create_task(
+                self._idle_timeout_loop(timeout_seconds)
+            )
+
+    async def _idle_timeout_loop(self, timeout_seconds: int) -> None:
+        try:
+            await asyncio.sleep(timeout_seconds)
+
+            if self.closed:
+                return
+
+            if count_human_members(self.voice_channel) > 0:
+                return
+
+            guild_id = self.voice_channel.guild.id
+
+            print(
+                f"[VOICE TIMEOUT] Idle timeout reached in "
+                f"{self.voice_channel.name}; leaving voice."
+            )
+
+            await self.close()
+            sessions.pop(guild_id, None)
+
+        except asyncio.CancelledError:
+            print(
+                f"[VOICE TIMEOUT] Idle timeout cancelled for "
+                f"{self.voice_channel.guild.name}."
+            )
+        finally:
+            if self.idle_timeout_task is asyncio.current_task():
+                self.idle_timeout_task = None
 
     def receive_pcm(self, member: discord.Member, pcm: bytes) -> None:
         """
@@ -724,6 +871,16 @@ class TranslationSession:
             return
 
         self.closed = True
+
+        current_task = asyncio.current_task()
+
+        if (
+            self.idle_timeout_task is not None
+            and self.idle_timeout_task is not current_task
+        ):
+            self.idle_timeout_task.cancel()
+
+        self.idle_timeout_task = None
 
         if self.buffer_task:
             self.buffer_task.cancel()
@@ -1502,6 +1659,8 @@ class TranslationCommands(commands.Cog):
                 f"({voice_channel.id})."
             )
 
+            session.update_idle_timeout()
+
             languages_text = ", ".join(requested_languages)
 
             await interaction.followup.send(
@@ -1682,6 +1841,112 @@ class TranslationCommands(commands.Cog):
                 ephemeral=True,
             )
 
+    timeout = app_commands.Group(
+        name="timeout",
+        description="Configure the empty voice-channel timeout.",
+        default_permissions=discord.Permissions(administrator=True),
+    )
+
+    @timeout.command(
+        name="set",
+        description="Set how many seconds the bot waits before leaving an empty voice channel.",
+    )
+    @app_commands.describe(
+        seconds="Seconds to wait before leaving an empty voice channel"
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def timeout_set(
+        self,
+        interaction: discord.Interaction,
+        seconds: app_commands.Range[int, 1, 86400],
+    ) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.",
+                ephemeral=True,
+            )
+            return
+
+        set_idle_timeout_seconds(
+            interaction.guild_id,
+            int(seconds),
+        )
+
+        session = sessions.get(interaction.guild_id)
+
+        if session is not None and not session.closed:
+            session.cancel_idle_timeout()
+            session.update_idle_timeout()
+
+        await interaction.response.send_message(
+            f"Empty-channel timeout set to **{seconds} seconds**.",
+            ephemeral=True,
+        )
+
+    @timeout.command(
+        name="off",
+        description="Disable automatic leaving when the voice channel is empty.",
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def timeout_off(
+        self,
+        interaction: discord.Interaction,
+    ) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.",
+                ephemeral=True,
+            )
+            return
+
+        set_idle_timeout_seconds(
+            interaction.guild_id,
+            None,
+        )
+
+        session = sessions.get(interaction.guild_id)
+
+        if session is not None and not session.closed:
+            session.cancel_idle_timeout()
+
+        await interaction.response.send_message(
+            "Empty-channel timeout disabled.",
+            ephemeral=True,
+        )
+
+    @timeout.command(
+        name="show",
+        description="Show the current empty voice-channel timeout.",
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def timeout_show(
+        self,
+        interaction: discord.Interaction,
+    ) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.",
+                ephemeral=True,
+            )
+            return
+
+        timeout_seconds = get_idle_timeout_seconds(
+            interaction.guild_id
+        )
+
+        if timeout_seconds is None:
+            message = "Empty-channel timeout is currently **disabled**."
+        else:
+            message = (
+                f"Empty-channel timeout is currently "
+                f"**{timeout_seconds} seconds**."
+            )
+
+        await interaction.response.send_message(
+            message,
+            ephemeral=True,
+        )
+
     @app_commands.command(
         name="leave",
         description="Stop translating and leave the voice channel.",
@@ -1716,32 +1981,51 @@ async def on_voice_state_update(
     before: discord.VoiceState,
     after: discord.VoiceState,
 ) -> None:
-    """
-    If Discord disconnects the bot from voice externally, clean up the
-    corresponding translation session.
-    """
-    if bot.user is None or member.id != bot.user.id:
+    guild_id = member.guild.id
+    session = sessions.get(guild_id)
+
+    if bot.user is not None and member.id == bot.user.id:
+        if before.channel is not None and after.channel is None:
+            print(
+                f"[VOICE ERROR] Bot was disconnected from voice in guild "
+                f"{member.guild.id} ({member.guild.name}); previous channel="
+                f"{before.channel.id} ({before.channel.name})."
+            )
+
+            session = sessions.pop(guild_id, None)
+
+            if session is not None and not session.closed:
+                session.closed = True
+                session.cancel_idle_timeout()
+
+                if session.buffer_task:
+                    session.buffer_task.cancel()
+
+                print(
+                    f"[VOICE] Translation session for guild {guild_id} "
+                    "was cleaned up after the unexpected voice disconnect."
+                )
+
         return
 
-    if before.channel is not None and after.channel is None:
-        print(
-            f"[VOICE ERROR] Bot was disconnected from voice in guild "
-            f"{member.guild.id} ({member.guild.name}); previous channel="
-            f"{before.channel.id} ({before.channel.name})."
+    if session is None or session.closed:
+        return
+
+    translated_channel_id = session.voice_channel.id
+
+    touched_translated_channel = (
+        (
+            before.channel is not None
+            and before.channel.id == translated_channel_id
         )
+        or (
+            after.channel is not None
+            and after.channel.id == translated_channel_id
+        )
+    )
 
-        session = sessions.pop(member.guild.id, None)
-
-        if session is not None and not session.closed:
-            session.closed = True
-
-            if session.buffer_task:
-                session.buffer_task.cancel()
-
-            print(
-                f"[VOICE] Translation session for guild {member.guild.id} "
-                "was cleaned up after the unexpected voice disconnect."
-            )
+    if touched_translated_channel:
+        session.update_idle_timeout()
 
 
 async def main() -> None:

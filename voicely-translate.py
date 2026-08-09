@@ -1283,16 +1283,21 @@ class TranslationSession:
             file=("speech.wav", wav_bytes, "audio/wav"),
             prompt=(
                 f"The speaker is speaking one of these languages: {language_list}. "
-                "Transcribe the speech in the language actually spoken. "
-                "Do not transcribe the speech into any other languages than those listed. "
-                "Favor sentences and phrases that make more sense as something someone would naturally say. "
-                "If the audio contains only laughter, giggling, chuckling, grunting, groaning, "
-                "sighing, humming, or other nonverbal vocalizations with no spoken words, "
-                "Or if the only speech is a hesitation or thinking sound such as hmm, hm, mm, "
-                "mmm, uh, um, erm, or similar filler sounds, or the equivalent in any language,"
-                "return exactly [NONVERBAL] and nothing else. "
-                "However, if the sound is part of a sentence, whether at the beginning or in the middle, leave it as is. "
-                "For example, if the speaker says 'uh, I think we should go', or 'I think we should, uh, go to the store', transcribe it as is, including the 'uh'."
+                "Transcribe exactly what is spoken, in the language actually spoken. "
+                "Do not translate the speech. "
+                "Do not change a sound into a word merely because that word exists in the spoken language. "
+                "Preserve the speaker's actual words, fillers, hesitation sounds, repetitions, and incomplete phrases. "
+                "Use the surrounding speech for context when deciding between similar-sounding words, "
+                "but do not invent words that are not clearly spoken. "
+                "If the entire audio contains no spoken words and consists only of nonverbal sounds, "
+                "such as laughter, giggling, chuckling, grunting, groaning, sighing, humming, "
+                "or hesitation sounds such as hmm, hm, mm, mmm, uh, um, erm, "
+                "including equivalent hesitation sounds in other languages, "
+                "return exactly [NONVERBAL]. "
+                "A hesitation sound by itself is [NONVERBAL], even if it could be written as a word "
+                "or expression in the detected language. "
+                "If a hesitation or filler occurs together with actual speech, transcribe the entire utterance, "
+                "including the hesitation or filler."
             ),
         )
 

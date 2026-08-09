@@ -31,7 +31,7 @@ load_dotenv()
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
-TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe"
+TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
 TRANSLATION_MODEL = "gpt-4o-mini"
 
 # Discord's decoded PCM audio is 48 kHz, stereo, signed 16-bit PCM.

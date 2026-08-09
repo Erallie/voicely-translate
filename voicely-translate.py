@@ -3,8 +3,13 @@ import base64
 import io
 import json
 import os
+import secrets
 import sqlite3
+import string
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 import wave
 from array import array
 from pathlib import Path
@@ -25,7 +30,6 @@ import webrtcvad
 load_dotenv()
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
-GUILD_ID = int(os.environ["GUILD_ID"])
 
 TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe"
 TRANSLATION_MODEL = "gpt-4o-mini"
@@ -63,11 +67,37 @@ VOICE_WORKER_RECOVERY_TIMEOUT = 15.0
 VOICE_WORKER_RESTART_DELAY = 1.0
 
 # Per-server idle voice timeout.
-# Values are stored in seconds. 300 seconds = 5 minutes.
+# Values are stored in seconds. Default: 30 seconds.
 DEFAULT_IDLE_TIMEOUT_SECONDS = 30
 
-# This database will also hold the server credit/token data added later.
+# Shared local database for per-server settings, trial credit, paid credit,
+# purchases, and API usage.
 DATABASE_FILE = Path(__file__).resolve().with_name("voicely-translate.db")
+
+# 100 Voicely Credits = $1.00 USD.
+MICRO_USD_PER_CREDIT = 10_000
+DEFAULT_TRIAL_CREDITS = 50
+DEFAULT_TRIAL_MICRO_USD = DEFAULT_TRIAL_CREDITS * MICRO_USD_PER_CREDIT
+
+UNLIMITED_CREDIT_GUILD_IDS = {
+    1102582171207741480,
+}
+
+# Current OpenAI list prices used for usage accounting.
+# Costs are stored as integer micro-dollars to avoid floating-point drift.
+TRANSCRIPTION_INPUT_USD_PER_MILLION = 1.25
+TRANSCRIPTION_OUTPUT_USD_PER_MILLION = 5.00
+TRANSLATION_INPUT_USD_PER_MILLION = 0.15
+TRANSLATION_OUTPUT_USD_PER_MILLION = 0.60
+
+# Optional multiplier for operating/payment-processing overhead.
+# 1.0 means users are charged only the calculated API token cost.
+USAGE_COST_MULTIPLIER = 1.0
+
+# Ko-fi / Cloudflare Worker integration.
+KOFI_URL = os.environ.get("KOFI_URL", "").strip()
+KOFI_WORKER_URL = os.environ.get("KOFI_WORKER_URL", "").rstrip("/")
+KOFI_BOT_API_SECRET = os.environ.get("KOFI_BOT_API_SECRET", "")
 
 
 # Broad reference list of language tags users can enter with /join, /add,
@@ -340,10 +370,10 @@ def contains_speech(pcm: bytes) -> tuple[bool, float, int]:
 
 def initialize_database() -> None:
     """
-    Create the shared per-server database.
+    Create and migrate the shared per-server database.
 
-    More server-level fields, such as prepaid credit/token information, can
-    be added to this table later without introducing another storage system.
+    The same guild_settings row stores voice timeout configuration and the
+    server's local credit/accounting state.
     """
     with sqlite3.connect(DATABASE_FILE) as connection:
         connection.execute(
@@ -354,16 +384,73 @@ def initialize_database() -> None:
             )
             """
         )
+
+        existing_columns = {
+            row[1]
+            for row in connection.execute(
+                "PRAGMA table_info(guild_settings)"
+            ).fetchall()
+        }
+
+        migrations = {
+            "topup_code": "TEXT",
+            "trial_balance_microusd": (
+                f"INTEGER NOT NULL DEFAULT {DEFAULT_TRIAL_MICRO_USD}"
+            ),
+            "paid_balance_microusd": "INTEGER NOT NULL DEFAULT 0",
+            "total_purchased_microusd": "INTEGER NOT NULL DEFAULT 0",
+            "total_used_microusd": "INTEGER NOT NULL DEFAULT 0",
+            "transcription_used_microusd": "INTEGER NOT NULL DEFAULT 0",
+            "translation_used_microusd": "INTEGER NOT NULL DEFAULT 0",
+        }
+
+        for column_name, definition in migrations.items():
+            if column_name not in existing_columns:
+                connection.execute(
+                    f"ALTER TABLE guild_settings "
+                    f"ADD COLUMN {column_name} {definition}"
+                )
+
+        connection.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_guild_settings_topup_code
+            ON guild_settings(topup_code)
+            WHERE topup_code IS NOT NULL
+            """
+        )
+
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS payment_events (
+                message_id TEXT PRIMARY KEY,
+                guild_id INTEGER NOT NULL,
+                amount_microusd INTEGER NOT NULL,
+                received_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        connection.commit()
+
+
+def ensure_guild_account(guild_id: int) -> None:
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        connection.execute(
+            """
+            INSERT OR IGNORE INTO guild_settings (
+                guild_id,
+                idle_timeout_seconds
+            )
+            VALUES (?, ?)
+            """,
+            (guild_id, DEFAULT_IDLE_TIMEOUT_SECONDS),
+        )
         connection.commit()
 
 
 def get_idle_timeout_seconds(guild_id: int) -> int | None:
-    """
-    Return this server's idle timeout in seconds.
+    ensure_guild_account(guild_id)
 
-    No database row means the default timeout is used.
-    A NULL idle_timeout_seconds value means the timeout is disabled.
-    """
     with sqlite3.connect(DATABASE_FILE) as connection:
         row = connection.execute(
             """
@@ -384,25 +471,406 @@ def set_idle_timeout_seconds(
     guild_id: int,
     timeout_seconds: int | None,
 ) -> None:
-    """
-    Save this server's idle timeout.
+    ensure_guild_account(guild_id)
 
-    timeout_seconds=None disables automatic leaving.
-    """
     with sqlite3.connect(DATABASE_FILE) as connection:
         connection.execute(
             """
-            INSERT INTO guild_settings (
-                guild_id,
-                idle_timeout_seconds
-            )
-            VALUES (?, ?)
-            ON CONFLICT(guild_id) DO UPDATE SET
-                idle_timeout_seconds = excluded.idle_timeout_seconds
+            UPDATE guild_settings
+            SET idle_timeout_seconds = ?
+            WHERE guild_id = ?
             """,
-            (guild_id, timeout_seconds),
+            (timeout_seconds, guild_id),
         )
         connection.commit()
+
+
+def _generate_topup_code() -> str:
+    alphabet = string.ascii_uppercase + string.digits
+    suffix = "".join(secrets.choice(alphabet) for _ in range(6))
+    return f"VT-{suffix}"
+
+
+def get_or_create_topup_code(guild_id: int) -> str:
+    ensure_guild_account(guild_id)
+
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        row = connection.execute(
+            """
+            SELECT topup_code
+            FROM guild_settings
+            WHERE guild_id = ?
+            """,
+            (guild_id,),
+        ).fetchone()
+
+        if row is not None and row[0]:
+            return str(row[0])
+
+        while True:
+            code = _generate_topup_code()
+
+            try:
+                connection.execute(
+                    """
+                    UPDATE guild_settings
+                    SET topup_code = ?
+                    WHERE guild_id = ?
+                    """,
+                    (code, guild_id),
+                )
+                connection.commit()
+                return code
+            except sqlite3.IntegrityError:
+                continue
+
+
+def get_credit_state(guild_id: int) -> dict[str, int | str | None]:
+    ensure_guild_account(guild_id)
+
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        row = connection.execute(
+            """
+            SELECT
+                topup_code,
+                trial_balance_microusd,
+                paid_balance_microusd,
+                total_purchased_microusd,
+                total_used_microusd,
+                transcription_used_microusd,
+                translation_used_microusd
+            FROM guild_settings
+            WHERE guild_id = ?
+            """,
+            (guild_id,),
+        ).fetchone()
+
+    if row is None:
+        raise RuntimeError("Could not load guild credit state.")
+
+    return {
+        "topup_code": row[0],
+        "trial_balance_microusd": int(row[1]),
+        "paid_balance_microusd": int(row[2]),
+        "total_purchased_microusd": int(row[3]),
+        "total_used_microusd": int(row[4]),
+        "transcription_used_microusd": int(row[5]),
+        "translation_used_microusd": int(row[6]),
+    }
+
+
+def get_available_credit_microusd(guild_id: int) -> int:
+    state = get_credit_state(guild_id)
+    return max(
+        0,
+        int(state["trial_balance_microusd"])
+        + int(state["paid_balance_microusd"]),
+    )
+
+
+def has_available_credit(guild_id: int) -> bool:
+    if guild_id in UNLIMITED_CREDIT_GUILD_IDS:
+        return True
+
+    return get_available_credit_microusd(guild_id) > 0
+
+
+def format_credits(micro_usd: int) -> str:
+    credits = max(0, micro_usd) / MICRO_USD_PER_CREDIT
+    return f"{credits:,.2f}"
+
+
+def calculate_token_cost_microusd(
+    input_tokens: int,
+    output_tokens: int,
+    input_usd_per_million: float,
+    output_usd_per_million: float,
+) -> int:
+    input_cost = input_tokens * input_usd_per_million
+    output_cost = output_tokens * output_usd_per_million
+
+    # USD-per-million × tokens gives micro-dollars directly.
+    raw_microusd = input_cost + output_cost
+    return max(0, round(raw_microusd * USAGE_COST_MULTIPLIER))
+
+
+def record_api_usage(
+    guild_id: int,
+    transcription_microusd: int = 0,
+    translation_microusd: int = 0,
+) -> None:
+    if guild_id in UNLIMITED_CREDIT_GUILD_IDS:
+        return
+
+    ensure_guild_account(guild_id)
+
+    total_cost = max(
+        0,
+        int(transcription_microusd) + int(translation_microusd),
+    )
+
+    if total_cost <= 0:
+        return
+
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+
+        row = connection.execute(
+            """
+            SELECT
+                trial_balance_microusd,
+                paid_balance_microusd
+            FROM guild_settings
+            WHERE guild_id = ?
+            """,
+            (guild_id,),
+        ).fetchone()
+
+        if row is None:
+            connection.rollback()
+            return
+
+        trial_balance = int(row[0])
+        paid_balance = int(row[1])
+
+        trial_spend = min(trial_balance, total_cost)
+        remaining_cost = total_cost - trial_spend
+        paid_spend = min(paid_balance, remaining_cost)
+
+        connection.execute(
+            """
+            UPDATE guild_settings
+            SET
+                trial_balance_microusd = trial_balance_microusd - ?,
+                paid_balance_microusd = paid_balance_microusd - ?,
+                total_used_microusd = total_used_microusd + ?,
+                transcription_used_microusd =
+                    transcription_used_microusd + ?,
+                translation_used_microusd =
+                    translation_used_microusd + ?
+            WHERE guild_id = ?
+            """,
+            (
+                trial_spend,
+                paid_spend,
+                total_cost,
+                max(0, int(transcription_microusd)),
+                max(0, int(translation_microusd)),
+                guild_id,
+            ),
+        )
+
+        connection.commit()
+
+
+def apply_payment_event(
+    guild_id: int,
+    message_id: str,
+    amount_microusd: int,
+) -> bool:
+    """
+    Apply one Ko-fi payment exactly once.
+
+    Returns True when the payment was newly applied and False when this
+    message_id had already been recorded locally.
+    """
+    ensure_guild_account(guild_id)
+
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        connection.execute("BEGIN IMMEDIATE")
+
+        already_seen = connection.execute(
+            """
+            SELECT 1
+            FROM payment_events
+            WHERE message_id = ?
+            """,
+            (message_id,),
+        ).fetchone()
+
+        if already_seen is not None:
+            connection.rollback()
+            return False
+
+        connection.execute(
+            """
+            INSERT INTO payment_events (
+                message_id,
+                guild_id,
+                amount_microusd
+            )
+            VALUES (?, ?, ?)
+            """,
+            (message_id, guild_id, amount_microusd),
+        )
+
+        connection.execute(
+            """
+            UPDATE guild_settings
+            SET
+                paid_balance_microusd =
+                    paid_balance_microusd + ?,
+                total_purchased_microusd =
+                    total_purchased_microusd + ?
+            WHERE guild_id = ?
+            """,
+            (amount_microusd, amount_microusd, guild_id),
+        )
+
+        connection.commit()
+        return True
+
+
+def _worker_request_sync(
+    method: str,
+    path: str,
+    payload: dict | None = None,
+) -> dict:
+    if not KOFI_WORKER_URL or not KOFI_BOT_API_SECRET:
+        raise RuntimeError(
+            "Ko-fi Worker integration is not configured."
+        )
+
+    url = f"{KOFI_WORKER_URL}{path}"
+    body = None
+
+    headers = {
+        "Authorization": f"Bearer {KOFI_BOT_API_SECRET}",
+        "Accept": "application/json",
+    }
+
+    if payload is not None:
+        body = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    request = urllib.request.Request(
+        url,
+        data=body,
+        headers=headers,
+        method=method,
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            response_body = response.read().decode("utf-8")
+    except urllib.error.HTTPError as error:
+        detail = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(
+            f"Ko-fi Worker returned HTTP {error.code}: {detail}"
+        ) from error
+    except urllib.error.URLError as error:
+        raise RuntimeError(
+            f"Could not reach the Ko-fi Worker: {error.reason}"
+        ) from error
+
+    if not response_body:
+        return {}
+
+    data = json.loads(response_body)
+
+    if not isinstance(data, dict):
+        raise RuntimeError("Ko-fi Worker returned an invalid response.")
+
+    return data
+
+
+async def worker_request(
+    method: str,
+    path: str,
+    payload: dict | None = None,
+) -> dict:
+    return await asyncio.to_thread(
+        _worker_request_sync,
+        method,
+        path,
+        payload,
+    )
+
+
+async def register_topup_code(guild_id: int, code: str) -> None:
+    await worker_request(
+        "POST",
+        "/register",
+        {
+            "guild_id": str(guild_id),
+            "topup_code": code,
+        },
+    )
+
+
+async def sync_kofi_topups(guild_id: int) -> int:
+    """
+    Pull unclaimed Ko-fi payments for this server from Cloudflare.
+
+    The local payment_events table makes this idempotent even if claiming the
+    event on Cloudflare fails after the local balance has already been updated.
+    """
+    if not KOFI_WORKER_URL or not KOFI_BOT_API_SECRET:
+        return 0
+
+    code = get_or_create_topup_code(guild_id)
+
+    await register_topup_code(guild_id, code)
+
+    data = await worker_request(
+        "GET",
+        f"/pending?guild_id={urllib.parse.quote(str(guild_id))}",
+    )
+
+    raw_topups = data.get("topups", [])
+
+    if not isinstance(raw_topups, list):
+        return 0
+
+    applied_count = 0
+    claim_ids: list[str] = []
+
+    for topup in raw_topups:
+        if not isinstance(topup, dict):
+            continue
+
+        message_id = str(topup.get("message_id", "")).strip()
+
+        try:
+            amount_microusd = int(topup.get("amount_microusd", 0))
+        except (TypeError, ValueError):
+            continue
+
+        if not message_id or amount_microusd <= 0:
+            continue
+
+        if apply_payment_event(
+            guild_id,
+            message_id,
+            amount_microusd,
+        ):
+            applied_count += 1
+
+        claim_ids.append(message_id)
+
+    if claim_ids:
+        try:
+            await worker_request(
+                "POST",
+                "/claim",
+                {
+                    "guild_id": str(guild_id),
+                    "message_ids": claim_ids,
+                },
+            )
+        except Exception as error:
+            print(
+                f"[KOFI] Payment(s) applied locally but could not be "
+                f"marked claimed remotely: {error!r}"
+            )
+
+    if applied_count:
+        print(
+            f"[KOFI] Applied {applied_count} new top-up payment(s) "
+            f"for guild {guild_id}."
+        )
+
+    return applied_count
 
 
 def count_human_members(channel: discord.VoiceChannel) -> int:
@@ -496,6 +964,7 @@ class TranslationSession:
         self.closed = False
         self.buffer_task = asyncio.create_task(self._buffer_loop())
         self.idle_timeout_task: asyncio.Task | None = None
+        self.credit_exhausted_notified = False
 
     def add_languages(self, languages: list[str]) -> list[str]:
         added = []
@@ -682,7 +1151,24 @@ class TranslationSession:
                 if not target_languages:
                     return
 
-                transcript = await self._transcribe(pcm, target_languages)
+                guild_id = self.voice_channel.guild.id
+
+                if not has_available_credit(guild_id):
+                    print(
+                        f"[CREDITS] Ignoring speech in guild {guild_id}; "
+                        "no trial or paid credit remains."
+                    )
+                    return
+
+                transcript, transcription_cost = await self._transcribe(
+                    pcm,
+                    target_languages,
+                )
+
+                record_api_usage(
+                    guild_id,
+                    transcription_microusd=transcription_cost,
+                )
 
                 if not transcript:
                     return
@@ -693,7 +1179,15 @@ class TranslationSession:
                     )
                     return
 
-                result = await self._translate(transcript, target_languages)
+                result, translation_cost = await self._translate(
+                    transcript,
+                    target_languages,
+                )
+
+                record_api_usage(
+                    guild_id,
+                    translation_microusd=translation_cost,
+                )
 
                 if self.closed:
                     return
@@ -706,17 +1200,52 @@ class TranslationSession:
                     target_languages=target_languages,
                 )
 
+                if not has_available_credit(guild_id):
+                    await self._handle_credit_exhausted()
+
             except Exception as error:
                 print(
                     f"Error processing speech from "
                     f"{member} ({member.id}): {error!r}"
                 )
 
+    async def _handle_credit_exhausted(self) -> None:
+        if self.credit_exhausted_notified or self.closed:
+            return
+
+        self.credit_exhausted_notified = True
+        guild_id = self.voice_channel.guild.id
+
+        print(
+            f"[CREDITS] Guild {guild_id} has exhausted all trial and "
+            "paid Voicely Translate credit."
+        )
+
+        try:
+            await self.voice_channel.send(
+                (
+                    "### Voicely Translate credit exhausted\n"
+                    "This server has used all of its available translation "
+                    "credit, so I'm leaving the voice channel.\n"
+                    "An administrator can use `/topup` to add more credit "
+                    "through Ko-fi."
+                ),
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+        except Exception as error:
+            print(
+                f"[CREDITS] Could not post exhausted-credit notice in "
+                f"guild {guild_id}: {error!r}"
+            )
+
+        await self.close()
+        sessions.pop(guild_id, None)
+
     async def _transcribe(
         self,
         pcm: bytes,
         languages: list[str],
-    ) -> str:
+    ) -> tuple[str, int]:
         wav_bytes = make_wav_bytes(pcm)
 
         print(
@@ -737,23 +1266,38 @@ class TranslationSession:
                 "If the audio contains only laughter, giggling, chuckling, grunting, groaning, "
                 "sighing, humming, or other nonverbal vocalizations with no spoken words, "
                 "return exactly [NONVERBAL] and nothing else. "
-                "If the only speech is a hesitation, thinking sound, or a grunt of acknowledgement such as hmm, hm, mm, "
-                "mmm, uh, um, erm, mhmm, or similar filler sounds, also return exactly [NONVERBAL] "
+                "If the only speech is a hesitation or thinking sound such as hmm, hm, mm, "
+                "mmm, uh, um, erm, or similar filler sounds, also return exactly [NONVERBAL] "
                 "and nothing else."
             ),
         )
 
         text = response.text.strip()
 
-        print(f"[OPENAI] Transcript: {text!r}")
+        usage = getattr(response, "usage", None)
+        input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
+        output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
 
-        return text
+        cost_microusd = calculate_token_cost_microusd(
+            input_tokens,
+            output_tokens,
+            TRANSCRIPTION_INPUT_USD_PER_MILLION,
+            TRANSCRIPTION_OUTPUT_USD_PER_MILLION,
+        )
+
+        print(
+            f"[OPENAI] Transcript: {text!r} "
+            f"(input={input_tokens}, output={output_tokens}, "
+            f"cost=${cost_microusd / 1_000_000:.6f})"
+        )
+
+        return text, cost_microusd
 
     async def _translate(
     self,
     transcript: str,
     target_languages: list[str],
-) -> dict:
+) -> tuple[dict, int]:
         """
         Detect the transcript's original language from the enabled languages only,
         and translate it into every other enabled language.
@@ -826,10 +1370,30 @@ class TranslationSession:
                     translations[requested] = str(translated_text).strip()
                     break
 
-        return {
-            "original_language": original_language,
-            "translations": translations,
-        }
+        usage = response.usage
+        input_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
+        output_tokens = int(getattr(usage, "completion_tokens", 0) or 0)
+
+        cost_microusd = calculate_token_cost_microusd(
+            input_tokens,
+            output_tokens,
+            TRANSLATION_INPUT_USD_PER_MILLION,
+            TRANSLATION_OUTPUT_USD_PER_MILLION,
+        )
+
+        print(
+            f"[OPENAI] Translation usage: input={input_tokens}, "
+            f"output={output_tokens}, "
+            f"cost=${cost_microusd / 1_000_000:.6f}"
+        )
+
+        return (
+            {
+                "original_language": original_language,
+                "translations": translations,
+            },
+            cost_microusd,
+        )
 
     async def _post_translation(
         self,
@@ -1514,9 +2078,10 @@ class TranslationBot(commands.Bot):
 
         await self.add_cog(TranslationCommands(self))
 
-        guild = discord.Object(id=GUILD_ID)
-        self.tree.copy_global_to(guild=guild)
-        await self.tree.sync(guild=guild)
+        synced_commands = await self.tree.sync()
+        print(
+            f"[COMMANDS] Synced {len(synced_commands)} global slash command(s)."
+        )
 
     async def close(self) -> None:
         if hasattr(self, "voice_bridge"):
@@ -1605,6 +2170,24 @@ class TranslationCommands(commands.Cog):
         if not isinstance(voice_channel, discord.VoiceChannel):
             await interaction.response.send_message(
                 "Please use this from a normal voice channel.",
+                ephemeral=True,
+            )
+            return
+
+        try:
+            await sync_kofi_topups(interaction.guild_id)
+        except Exception as error:
+            print(
+                f"[KOFI] Could not sync top-ups before /join in guild "
+                f"{interaction.guild_id}: {error!r}"
+            )
+
+        if not has_available_credit(interaction.guild_id):
+            await interaction.response.send_message(
+                (
+                    "This server has no Voicely Translate credit remaining.\n"
+                    "Use `/topup` to add more credit through Ko-fi."
+                ),
                 ephemeral=True,
             )
             return
@@ -1840,6 +2423,155 @@ class TranslationCommands(commands.Cog):
                 chunk,
                 ephemeral=True,
             )
+
+    @app_commands.command(
+        name="topup",
+        description="Show how to add Voicely Translate credit to this server.",
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def topup(
+        self,
+        interaction: discord.Interaction,
+    ) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.",
+                ephemeral=True,
+            )
+            return
+
+        code = get_or_create_topup_code(interaction.guild_id)
+
+        if not KOFI_WORKER_URL or not KOFI_BOT_API_SECRET:
+            await interaction.response.send_message(
+                (
+                    "Ko-fi top-ups have not been configured by the bot owner yet. "
+                    f"This server's persistent top-up code is **`{code}`**."
+                ),
+                ephemeral=True,
+            )
+            return
+
+        try:
+            await register_topup_code(interaction.guild_id, code)
+            await sync_kofi_topups(interaction.guild_id)
+        except Exception as error:
+            print(
+                f"[KOFI] /topup registration/sync failed for guild "
+                f"{interaction.guild_id}: {error!r}"
+            )
+
+            await interaction.response.send_message(
+                (
+                    "I couldn't reach the Ko-fi payment service right now. "
+                    "Please try again shortly."
+                ),
+                ephemeral=True,
+            )
+            return
+
+        lines = [
+            "### Add Voicely Translate credit",
+            f"Your server's top-up code is **`{code}`**.",
+            "",
+            "Include that exact code in the message with your Ko-fi payment.",
+            "Every **$1.00 USD adds 100 Voicely Credits** to this server.",
+        ]
+
+        if KOFI_URL:
+            lines.extend([
+                "",
+                f"Ko-fi: {KOFI_URL}",
+            ])
+
+        lines.extend([
+            "",
+            "After payment, use `/balance` (or `/join`) and the bot will "
+            "automatically pull in the new credit.",
+        ])
+
+        await interaction.response.send_message(
+            "\n".join(lines),
+            ephemeral=True,
+        )
+
+    @app_commands.command(
+        name="balance",
+        description="Show this server's remaining Voicely Translate credit.",
+    )
+    async def balance(
+        self,
+        interaction: discord.Interaction,
+    ) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.",
+                ephemeral=True,
+            )
+            return
+
+        try:
+            await sync_kofi_topups(interaction.guild_id)
+        except Exception as error:
+            print(
+                f"[KOFI] /balance sync failed for guild "
+                f"{interaction.guild_id}: {error!r}"
+            )
+
+        state = get_credit_state(interaction.guild_id)
+        trial = int(state["trial_balance_microusd"])
+        paid = int(state["paid_balance_microusd"])
+        available = max(0, trial + paid)
+
+        await interaction.response.send_message(
+            (
+                f"**Available:** {format_credits(available)} credits\n"
+                f"**Free trial:** {format_credits(trial)} credits\n"
+                f"**Purchased:** {format_credits(paid)} credits\n"
+                f"*(100 credits = $1.00 USD)*"
+            ),
+            ephemeral=True,
+        )
+
+    @app_commands.command(
+        name="usage",
+        description="Show this server's Voicely Translate usage.",
+    )
+    async def usage(
+        self,
+        interaction: discord.Interaction,
+    ) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.",
+                ephemeral=True,
+            )
+            return
+
+        try:
+            await sync_kofi_topups(interaction.guild_id)
+        except Exception as error:
+            print(
+                f"[KOFI] /usage sync failed for guild "
+                f"{interaction.guild_id}: {error!r}"
+            )
+
+        state = get_credit_state(interaction.guild_id)
+
+        await interaction.response.send_message(
+            (
+                f"**Total API usage:** "
+                f"{format_credits(int(state['total_used_microusd']))} credits\n"
+                f"**Transcription:** "
+                f"{format_credits(int(state['transcription_used_microusd']))} credits\n"
+                f"**Translation:** "
+                f"{format_credits(int(state['translation_used_microusd']))} credits\n"
+                f"**Total purchased:** "
+                f"{format_credits(int(state['total_purchased_microusd']))} credits\n"
+                f"*(100 credits = $1.00 USD)*"
+            ),
+            ephemeral=True,
+        )
 
     timeout = app_commands.Group(
         name="timeout",

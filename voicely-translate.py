@@ -1,14 +1,16 @@
 import asyncio
+import base64
 import io
 import json
 import os
 import time
 import wave
+from pathlib import Path
 from dataclasses import dataclass, field
 
 import discord
 from discord import app_commands
-from discord.ext import commands, voice_recv
+from discord.ext import commands
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
@@ -41,6 +43,11 @@ MAX_UTTERANCE_SECONDS = 25.0
 
 # How frequently the bot checks whether an utterance has ended.
 BUFFER_CHECK_INTERVAL = 0.10
+
+VOICE_WORKER_HOST = "127.0.0.1"
+VOICE_WORKER_PORT = int(os.environ.get("VOICE_WORKER_PORT", "8765"))
+VOICE_WORKER_START_TIMEOUT = 20.0
+VOICE_WORKER_JOIN_TIMEOUT = 20.0
 
 
 # Broad reference list of language tags users can enter with /join, /add,
@@ -323,12 +330,10 @@ class TranslationSession:
         self,
         bot: commands.Bot,
         voice_channel: discord.VoiceChannel,
-        voice_client: voice_recv.VoiceRecvClient,
         languages: list[str],
     ):
         self.bot = bot
         self.voice_channel = voice_channel
-        self.voice_client = voice_client
         self.languages = languages
 
         self.buffers: dict[int, SpeakerBuffer] = {}
@@ -401,7 +406,13 @@ class TranslationSession:
                         member = buffer.member
                         del self.buffers[user_id]
 
-                        if pcm_duration_seconds(pcm) >= MIN_UTTERANCE_SECONDS:
+                        duration = pcm_duration_seconds(pcm)
+
+                        if duration >= MIN_UTTERANCE_SECONDS:
+                            print(
+                                f"[VOICE] Utterance ready from {member} "
+                                f"({member.id}); duration={duration:.2f}s"
+                            )
                             ready.append((user_id, member, pcm))
 
                 # Do not await these here. Each completed utterance gets its own
@@ -465,12 +476,19 @@ class TranslationSession:
     async def _transcribe(self, pcm: bytes) -> str:
         wav_bytes = make_wav_bytes(pcm)
 
+        print(
+            f"[OPENAI] Sending {pcm_duration_seconds(pcm):.2f}s "
+            f"of audio for transcription..."
+        )
+
         response = await openai_client.audio.transcriptions.create(
             model=TRANSCRIPTION_MODEL,
             file=("speech.wav", wav_bytes, "audio/wav"),
         )
 
         text = response.text.strip()
+
+        print(f"[OPENAI] Transcript: {text!r}")
 
         return text
 
@@ -589,56 +607,296 @@ class TranslationSession:
         if self.buffer_task:
             self.buffer_task.cancel()
 
-        if self.voice_client.is_listening():
-            self.voice_client.stop_listening()
+        bridge = getattr(self.bot, "voice_bridge", None)
 
-        if self.voice_client.is_connected():
-            await self.voice_client.disconnect(force=True)
+        if bridge is not None:
+            await bridge.leave(self.voice_channel.guild.id)
 
         self.buffers.clear()
 
 
 # ============================================================
-# Voice sink
+# Node voice worker bridge
 # ============================================================
 
-class TranslationSink(voice_recv.AudioSink):
-    def __init__(
-        self,
-        loop: asyncio.AbstractEventLoop,
-        session: TranslationSession,
-    ):
-        super().__init__()
-        self.loop = loop
-        self.session = session
+class VoiceWorkerBridge:
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self.server: asyncio.AbstractServer | None = None
+        self.reader: asyncio.StreamReader | None = None
+        self.writer: asyncio.StreamWriter | None = None
+        self.worker_process: asyncio.subprocess.Process | None = None
+        self.connected = asyncio.Event()
+        self.worker_ready = asyncio.Event()
+        self.pending_joins: dict[int, asyncio.Future] = {}
+        self.member_cache: dict[tuple[int, int], discord.Member] = {}
+        self._read_task: asyncio.Task | None = None
+        self._stdout_task: asyncio.Task | None = None
+        self._stderr_task: asyncio.Task | None = None
 
-    def wants_opus(self) -> bool:
-        # False means discord-ext-voice-recv decodes Opus and gives us PCM.
-        return False
-
-    def write(
-        self,
-        user: discord.Member | discord.User | None,
-        data: voice_recv.VoiceData,
-    ) -> None:
-        if user is None or not isinstance(user, discord.Member):
-            return
-
-        pcm = data.pcm
-
-        if not pcm:
-            return
-
-        # AudioSink.write() is called from the receiver thread, so pass the
-        # PCM safely back to Discord.py's asyncio event loop.
-        self.loop.call_soon_threadsafe(
-            self.session.receive_pcm,
-            user,
-            pcm,
+    async def start(self) -> None:
+        self.server = await asyncio.start_server(
+            self._handle_connection,
+            VOICE_WORKER_HOST,
+            VOICE_WORKER_PORT,
         )
 
-    def cleanup(self) -> None:
-        pass
+        worker_path = Path(__file__).resolve().with_name("voice-worker.mjs")
+
+        if not worker_path.exists():
+            raise RuntimeError(
+                f"Voice worker not found: {worker_path}. "
+                "Place voice-worker.mjs beside this Python file."
+            )
+
+        env = os.environ.copy()
+        env["VOICE_WORKER_HOST"] = VOICE_WORKER_HOST
+        env["VOICE_WORKER_PORT"] = str(VOICE_WORKER_PORT)
+
+        try:
+            self.worker_process = await asyncio.create_subprocess_exec(
+                "node",
+                str(worker_path),
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
+            )
+        except FileNotFoundError as error:
+            raise RuntimeError(
+                "Node.js was not found. Install Node.js 22.12.0 or newer "
+                "and make sure `node` is on PATH."
+            ) from error
+
+        self._stdout_task = asyncio.create_task(
+            self._pipe_worker_output(self.worker_process.stdout, "NODE")
+        )
+        self._stderr_task = asyncio.create_task(
+            self._pipe_worker_output(self.worker_process.stderr, "NODE ERROR")
+        )
+
+        try:
+            await asyncio.wait_for(
+                self.worker_ready.wait(),
+                timeout=VOICE_WORKER_START_TIMEOUT,
+            )
+        except TimeoutError as error:
+            raise RuntimeError(
+                "The Node voice worker did not become ready in time. "
+                "Check the Node worker output above."
+            ) from error
+
+        print("[VOICE BRIDGE] Node voice worker is ready.")
+
+    async def stop(self) -> None:
+        if self.writer is not None:
+            try:
+                await self.send({"type": "shutdown"})
+            except Exception:
+                pass
+
+            self.writer.close()
+
+            try:
+                await self.writer.wait_closed()
+            except Exception:
+                pass
+
+        if self.worker_process is not None and self.worker_process.returncode is None:
+            try:
+                await asyncio.wait_for(self.worker_process.wait(), timeout=3.0)
+            except TimeoutError:
+                self.worker_process.terminate()
+                await self.worker_process.wait()
+
+        if self.server is not None:
+            self.server.close()
+            await self.server.wait_closed()
+
+    async def join(self, guild_id: int, channel_id: int) -> None:
+        if not self.worker_ready.is_set() or self.writer is None:
+            raise RuntimeError("The voice worker is not connected.")
+
+        loop = asyncio.get_running_loop()
+        future = loop.create_future()
+        self.pending_joins[guild_id] = future
+
+        await self.send({
+            "type": "join",
+            "guild_id": str(guild_id),
+            "channel_id": str(channel_id),
+        })
+
+        try:
+            await asyncio.wait_for(future, timeout=VOICE_WORKER_JOIN_TIMEOUT)
+        finally:
+            self.pending_joins.pop(guild_id, None)
+
+    async def leave(self, guild_id: int) -> None:
+        if self.writer is None:
+            return
+
+        await self.send({
+            "type": "leave",
+            "guild_id": str(guild_id),
+        })
+
+    async def send(self, payload: dict) -> None:
+        if self.writer is None:
+            raise RuntimeError("The voice worker is not connected.")
+
+        self.writer.write(
+            (json.dumps(payload, separators=(",", ":")) + "\n").encode("utf-8")
+        )
+        await self.writer.drain()
+
+    async def _handle_connection(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+    ) -> None:
+        if self.writer is not None:
+            writer.close()
+            await writer.wait_closed()
+            return
+
+        self.reader = reader
+        self.writer = writer
+        self.connected.set()
+        print("[VOICE BRIDGE] Node worker connected to Python.")
+
+        try:
+            while True:
+                line = await reader.readline()
+
+                if not line:
+                    break
+
+                try:
+                    message = json.loads(line)
+                except json.JSONDecodeError as error:
+                    print(f"[VOICE BRIDGE] Invalid worker message: {error}")
+                    continue
+
+                await self._handle_message(message)
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            print(f"[VOICE BRIDGE] Worker connection error: {error!r}")
+        finally:
+            if self.writer is writer:
+                self.reader = None
+                self.writer = None
+                self.connected.clear()
+                self.worker_ready.clear()
+
+            for future in self.pending_joins.values():
+                if not future.done():
+                    future.set_exception(
+                        RuntimeError("The voice worker disconnected.")
+                    )
+
+            print("[VOICE BRIDGE] Node worker disconnected.")
+
+    async def _handle_message(self, message: dict) -> None:
+        message_type = message.get("type")
+
+        if message_type == "ready":
+            self.worker_ready.set()
+            return
+
+        if message_type == "log":
+            print(f"[VOICE WORKER] {message.get('message', '')}")
+            return
+
+        if message_type == "joined":
+            guild_id = int(message["guild_id"])
+            future = self.pending_joins.get(guild_id)
+
+            if future is not None and not future.done():
+                future.set_result(True)
+
+            print(
+                f"[VOICE] Worker joined channel {message.get('channel_id')} "
+                f"in guild {guild_id}."
+            )
+            return
+
+        if message_type == "join_error":
+            guild_id = int(message["guild_id"])
+            future = self.pending_joins.get(guild_id)
+            error = RuntimeError(message.get("message", "Voice join failed."))
+
+            if future is not None and not future.done():
+                future.set_exception(error)
+            else:
+                print(f"[VOICE] Join error for guild {guild_id}: {error}")
+
+            return
+
+        if message_type == "audio":
+            await self._handle_audio(message)
+            return
+
+        if message_type == "voice_error":
+            print(
+                f"[VOICE WORKER ERROR] Guild {message.get('guild_id')}: "
+                f"{message.get('message', 'Unknown voice error')}"
+            )
+            return
+
+    async def _handle_audio(self, message: dict) -> None:
+        guild_id = int(message["guild_id"])
+        user_id = int(message["user_id"])
+        session = sessions.get(guild_id)
+
+        if session is None or session.closed:
+            return
+
+        member_key = (guild_id, user_id)
+        member = self.member_cache.get(member_key)
+
+        if member is None:
+            guild = self.bot.get_guild(guild_id)
+
+            if guild is None:
+                return
+
+            member = guild.get_member(user_id)
+
+            if member is None:
+                try:
+                    member = await guild.fetch_member(user_id)
+                except discord.HTTPException:
+                    return
+
+            self.member_cache[member_key] = member
+            print(
+                f"[VOICE] First PCM packet received from "
+                f"{member} ({member.id}) via Node worker."
+            )
+
+        try:
+            pcm = base64.b64decode(message["pcm"], validate=True)
+        except (ValueError, TypeError):
+            return
+
+        session.receive_pcm(member, pcm)
+
+    async def _pipe_worker_output(
+        self,
+        stream: asyncio.StreamReader | None,
+        label: str,
+    ) -> None:
+        if stream is None:
+            return
+
+        while True:
+            line = await stream.readline()
+
+            if not line:
+                break
+
+            print(f"[{label}] {line.decode('utf-8', errors='replace').rstrip()}")
 
 
 # ============================================================
@@ -651,12 +909,23 @@ intents.voice_states = True
 
 
 class TranslationBot(commands.Bot):
+    voice_bridge: VoiceWorkerBridge
+
     async def setup_hook(self) -> None:
+        self.voice_bridge = VoiceWorkerBridge(self)
+        await self.voice_bridge.start()
+
         await self.add_cog(TranslationCommands(self))
 
         guild = discord.Object(id=GUILD_ID)
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
+
+    async def close(self) -> None:
+        if hasattr(self, "voice_bridge"):
+            await self.voice_bridge.stop()
+
+        await super().close()
 
 
 bot = TranslationBot(
@@ -767,24 +1036,31 @@ class TranslationCommands(commands.Cog):
         await interaction.response.defer(ephemeral=True)
 
         try:
-            voice_client = await voice_channel.connect(
-                cls=voice_recv.VoiceRecvClient
-            )
-
             session = TranslationSession(
                 bot=self.bot,
                 voice_channel=voice_channel,
-                voice_client=voice_client,
                 languages=requested_languages,
             )
-
-            sink = TranslationSink(
-                loop=asyncio.get_running_loop(),
-                session=session,
-            )
-
-            voice_client.listen(sink)
             sessions[interaction.guild_id] = session
+
+            try:
+                await self.bot.voice_bridge.join(
+                    interaction.guild_id,
+                    voice_channel.id,
+                )
+            except Exception:
+                sessions.pop(interaction.guild_id, None)
+                session.closed = True
+
+                if session.buffer_task:
+                    session.buffer_task.cancel()
+
+                raise
+
+            print(
+                f"[VOICE] Translation session active in {voice_channel.name} "
+                f"({voice_channel.id})."
+            )
 
             languages_text = ", ".join(requested_languages)
 

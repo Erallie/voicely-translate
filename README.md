@@ -1,31 +1,29 @@
-Discord Voice Translator Bot
+Voicely Translate - Node voice bridge setup
 
-Environment variables:
-    DISCORD_TOKEN=your Discord bot token
-    OPENAI_API_KEY=your OpenAI API key
+Files that must stay together in the same folder:
+    voicely-translate-bridge.py
+    voice-worker.mjs
+    package.json
+    requirements.txt
+    .env
 
-Install:
+Your .env should contain:
+    DISCORD_TOKEN=...
+    OPENAI_API_KEY=...
+    GUILD_ID=...
+
+Python setup:
     python -m pip install -r requirements.txt
 
-Run:
-    python discord_voice_translator.py
+Node setup (Node.js 22.12.0 or newer):
+    npm install
 
-Commands:
-    /join languages:English, Japanese, Spanish
-    /add languages:French, Korean
-    /remove languages:Spanish
-    /languages
-    /leave
+Run the bot:
+    python voicely-translate-bridge.py
 
-Required Discord bot permissions in the server/channel:
-    View Channel
-    Connect
-    Use Voice Activity
-    Send Messages
-    Use Application Commands
+You do NOT run voice-worker.mjs yourself. The Python bot launches it automatically.
 
-Notes:
-    - The bot posts translations directly into the voice channel's built-in text chat.
-    - Incoming audio is buffered separately for every Discord member, so overlapping speakers are processed independently.
-    - Language values are comma-separated so there is no fixed number of language arguments.
-    - The code uses gpt-4o-transcribe for speech-to-text and gpt-4o-mini for language detection + translations.
+The Node worker only handles Discord voice receive and Opus -> PCM decoding.
+The Python process still handles slash commands, per-user utterance buffering, OpenAI transcription/translation, and posting to the voice channel side chat.
+
+If you later run this on Raspberry Pi and want lower CPU use for Opus decoding, you can try installing @discordjs/opus and removing opusscript, but opusscript is included here because it is easier to install across Windows and Linux.

@@ -1,0 +1,8 @@
+name = "voicely-translate-kofi"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "voicely-translate-kofi"
+database_id = "ea4afbb9-58a6-41fd-b8e9-6c45f165a287"

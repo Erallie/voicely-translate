@@ -43,6 +43,127 @@ MAX_UTTERANCE_SECONDS = 25.0
 BUFFER_CHECK_INTERVAL = 0.10
 
 
+# Broad reference list of language tags users can enter with /join, /add,
+# and /remove. This is intentionally not used as a validation whitelist:
+# other valid BCP 47 tags may still be accepted by the bot.
+LANGUAGE_TAGS = {
+    "af": "Afrikaans",
+    "am": "Amharic",
+    "ar": "Arabic",
+    "as": "Assamese",
+    "az": "Azerbaijani",
+    "ba": "Bashkir",
+    "be": "Belarusian",
+    "bg": "Bulgarian",
+    "bn": "Bengali",
+    "bo": "Tibetan",
+    "br": "Breton",
+    "bs": "Bosnian",
+    "ca": "Catalan",
+    "cs": "Czech",
+    "cy": "Welsh",
+    "da": "Danish",
+    "de": "German",
+    "el": "Greek",
+    "en": "English",
+    "es": "Spanish",
+    "et": "Estonian",
+    "eu": "Basque",
+    "fa": "Persian",
+    "fi": "Finnish",
+    "fo": "Faroese",
+    "fr": "French",
+    "gl": "Galician",
+    "gu": "Gujarati",
+    "ha": "Hausa",
+    "haw": "Hawaiian",
+    "he": "Hebrew",
+    "hi": "Hindi",
+    "hr": "Croatian",
+    "ht": "Haitian Creole",
+    "hu": "Hungarian",
+    "hy": "Armenian",
+    "id": "Indonesian",
+    "is": "Icelandic",
+    "it": "Italian",
+    "ja": "Japanese",
+    "jv": "Javanese",
+    "ka": "Georgian",
+    "kk": "Kazakh",
+    "km": "Khmer",
+    "kn": "Kannada",
+    "ko": "Korean",
+    "la": "Latin",
+    "lb": "Luxembourgish",
+    "ln": "Lingala",
+    "lo": "Lao",
+    "lt": "Lithuanian",
+    "lv": "Latvian",
+    "mg": "Malagasy",
+    "mi": "Māori",
+    "mk": "Macedonian",
+    "ml": "Malayalam",
+    "mn": "Mongolian",
+    "mr": "Marathi",
+    "ms": "Malay",
+    "mt": "Maltese",
+    "my": "Burmese",
+    "ne": "Nepali",
+    "nl": "Dutch",
+    "nn": "Norwegian Nynorsk",
+    "no": "Norwegian",
+    "oc": "Occitan",
+    "pa": "Punjabi",
+    "pl": "Polish",
+    "ps": "Pashto",
+    "pt": "Portuguese",
+    "ro": "Romanian",
+    "ru": "Russian",
+    "sa": "Sanskrit",
+    "sd": "Sindhi",
+    "si": "Sinhala",
+    "sk": "Slovak",
+    "sl": "Slovenian",
+    "sn": "Shona",
+    "so": "Somali",
+    "sq": "Albanian",
+    "sr": "Serbian",
+    "su": "Sundanese",
+    "sv": "Swedish",
+    "sw": "Swahili",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "tg": "Tajik",
+    "th": "Thai",
+    "tk": "Turkmen",
+    "tl": "Tagalog",
+    "tr": "Turkish",
+    "tt": "Tatar",
+    "uk": "Ukrainian",
+    "ur": "Urdu",
+    "uz": "Uzbek",
+    "vi": "Vietnamese",
+    "yi": "Yiddish",
+    "yo": "Yoruba",
+    "zh": "Chinese",
+}
+
+REGIONAL_LANGUAGE_TAGS = {
+    "en-US": "English (United States)",
+    "en-GB": "English (United Kingdom)",
+    "es-ES": "Spanish (Spain)",
+    "es-MX": "Spanish (Mexico)",
+    "fr-FR": "French (France)",
+    "fr-CA": "French (Canada)",
+    "pt-BR": "Portuguese (Brazil)",
+    "pt-PT": "Portuguese (Portugal)",
+    "zh-CN": "Chinese (Simplified, China)",
+    "zh-TW": "Chinese (Traditional, Taiwan)",
+    "zh-Hans": "Chinese (Simplified script)",
+    "zh-Hant": "Chinese (Traditional script)",
+}
+
+
 openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 
@@ -637,7 +758,7 @@ class TranslationCommands(commands.Cog):
             await interaction.response.send_message(
                 (
                     f"I'm already translating **{existing.voice_channel.name}**. "
-                    "Use `/add`, `/remove`, `/languages`, or `/leave`."
+                    "Use `/add`, `/remove`, `/active`, `/languages`, or `/leave`."
                 ),
                 ephemeral=True,
             )
@@ -772,10 +893,10 @@ class TranslationCommands(commands.Cog):
         )
 
     @app_commands.command(
-        name="languages",
+        name="active",
         description="Show the currently enabled translation language tags.",
     )
-    async def languages(
+    async def active(
         self,
         interaction: discord.Interaction,
     ) -> None:
@@ -796,6 +917,50 @@ class TranslationCommands(commands.Cog):
             text,
             ephemeral=True,
         )
+
+    @app_commands.command(
+        name="languages",
+        description="List language tags you can use with the translation commands.",
+    )
+    async def languages(
+        self,
+        interaction: discord.Interaction,
+    ) -> None:
+        lines = [
+            "**Language tags**",
+            "Use these with `/join`, `/add`, and `/remove`.",
+            "",
+        ]
+
+        for tag, name in LANGUAGE_TAGS.items():
+            lines.append(f"`{tag}` — {name}")
+
+        lines.extend([
+            "",
+            "**Common regional/script tags**",
+        ])
+
+        for tag, name in REGIONAL_LANGUAGE_TAGS.items():
+            lines.append(f"`{tag}` — {name}")
+
+        lines.extend([
+            "",
+            "This is a reference list, not a hard-coded limit. "
+            "You can also enter other valid BCP 47 language tags.",
+        ])
+
+        chunks = split_discord_message("\n".join(lines))
+
+        await interaction.response.send_message(
+            chunks[0],
+            ephemeral=True,
+        )
+
+        for chunk in chunks[1:]:
+            await interaction.followup.send(
+                chunk,
+                ephemeral=True,
+            )
 
     @app_commands.command(
         name="leave",

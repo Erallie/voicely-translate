@@ -1,4 +1,4 @@
-const TOPUP_CODE_PATTERN = /\\bVT-[A-Z0-9]{6}\\b/i;
+const TOPUP_CODE_PATTERN = /\bVT-[A-Z0-9]{6}\b/i;
 
 function jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -184,6 +184,72 @@ async function processKofiPayment(payload, env) {
         throw new Error("INVALID_VERIFICATION_TOKEN");
     }
 
+    // Only the dedicated Voicely Translate Credits Ko-fi Shop product
+    // is allowed to create Voicely credit.
+    if (payload?.type !== "Shop Order") {
+        return {
+            ok: true,
+            ignored: true,
+            reason: "Not a Ko-fi Shop order.",
+        };
+    }
+
+    const shopItems = Array.isArray(payload.shop_items)
+        ? payload.shop_items
+        : [];
+
+    if (shopItems.length === 0) {
+        return {
+            ok: true,
+            ignored: true,
+            reason: "Shop order contains no shop_items.",
+        };
+    }
+
+    if (!env.VOICELY_SHOP_ITEM_CODE) {
+        console.error("VOICELY_SHOP_ITEM_CODE is not configured.");
+        throw new Error("VOICELY_SHOP_ITEM_CODE_NOT_CONFIGURED");
+    }
+
+    const voicelyShopItemCode = String(
+        env.VOICELY_SHOP_ITEM_CODE
+    ).trim();
+
+    const containsVoicelyItem = shopItems.some(
+        (item) => String(item?.direct_link_code || "").trim()
+            === voicelyShopItemCode
+    );
+
+    if (!containsVoicelyItem) {
+        return {
+            ok: true,
+            ignored: true,
+            reason: "Shop order is not for Voicely Translate Credits.",
+        };
+    }
+
+    // Avoid treating money spent on unrelated products as Voicely credit.
+    const containsOtherItems = shopItems.some(
+        (item) => String(item?.direct_link_code || "").trim()
+            !== voicelyShopItemCode
+    );
+
+    if (containsOtherItems) {
+        console.warn(
+            "Ignoring mixed Ko-fi Shop order containing Voicely credits "
+            + "and other products."
+        );
+
+        return {
+            ok: true,
+            ignored: true,
+            reason: (
+                "Mixed shop orders cannot be converted into Voicely credit. "
+                + "Purchase Voicely Translate Credits separately."
+            ),
+        };
+    }
+
     const messageId = String(
         payload.message_id
         || payload.kofi_transaction_id
@@ -195,6 +261,19 @@ async function processKofiPayment(payload, env) {
 
     if (!messageId) {
         throw new Error("MISSING_MESSAGE_ID");
+    }
+
+    if (!topupCode) {
+        console.warn(
+            `Ignoring Voicely Shop order ${messageId}: `
+            + "no VT-XXXXXX server code was supplied in the order message."
+        );
+
+        return {
+            ok: true,
+            ignored: true,
+            reason: "Missing Voicely server top-up code in Ko-fi message.",
+        };
     }
 
     if (currency !== "USD") {
@@ -221,23 +300,19 @@ async function processKofiPayment(payload, env) {
         throw new Error("INVALID_PAYMENT_AMOUNT");
     }
 
-    let guildId = null;
+    const registration = await env.DB.prepare(
+        `
+        SELECT guild_id
+        FROM registrations
+        WHERE topup_code = ?
+        `
+    )
+        .bind(topupCode)
+        .first();
 
-    if (topupCode) {
-        const registration = await env.DB.prepare(
-            `
-            SELECT guild_id
-            FROM registrations
-            WHERE topup_code = ?
-            `
-        )
-            .bind(topupCode)
-            .first();
-
-        if (registration?.guild_id) {
-            guildId = String(registration.guild_id);
-        }
-    }
+    const guildId = registration?.guild_id
+        ? String(registration.guild_id)
+        : null;
 
     await env.DB.prepare(
         `
@@ -263,13 +338,15 @@ async function processKofiPayment(payload, env) {
         .run();
 
     console.log(
-        `Ko-fi payment ${messageId}: $${payload.amount} ${currency}, `
-        + `code=${topupCode || "none"}, guild=${guildId || "unmatched"}`
+        `Voicely Shop payment ${messageId}: `
+        + `$${payload.amount} ${currency}, `
+        + `code=${topupCode}, guild=${guildId || "unmatched"}`
     );
 
     return {
         ok: true,
         matched: Boolean(guildId),
+        product: "Voicely Translate Credits",
     };
 }
 
@@ -357,6 +434,15 @@ async function handleKofiWebhook(request, env) {
             return jsonResponse({
                 error: "Invalid payment amount",
             }, 400);
+        }
+
+        if (
+            error instanceof Error
+            && error.message === "VOICELY_SHOP_ITEM_CODE_NOT_CONFIGURED"
+        ) {
+            return jsonResponse({
+                error: "Voicely Shop product code is not configured",
+            }, 500);
         }
 
         console.error("Voicely Ko-fi processing failed:", error);

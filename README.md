@@ -1,29 +1,289 @@
-Voicely Translate - Node voice bridge setup
+# Voicely Translate
 
-Files that must stay together in the same folder:
-    voicely-translate-bridge.py
-    voice-worker.mjs
-    package.json
-    requirements.txt
-    .env
+Voicely Translate is a Discord bot that automatically transcribes and translates conversations happening in voice channels.
 
-Your .env should contain:
-    DISCORD_TOKEN=...
-    OPENAI_API_KEY=...
-    GUILD_ID=...
+When the bot is active in a voice channel, it listens to each speaker individually, transcribes what they say, and posts the original transcription alongside translations in the voice channel's side chat.
 
-Python setup:
-    python -m pip install -r requirements.txt
+Multiple translation languages can be enabled at once, and languages can be added or removed while the bot is already translating.
 
-Node setup (Node.js 22.12.0 or newer):
-    npm install
+## Features
 
-Run the bot:
-    python voicely-translate-bridge.py
+* Automatically transcribes speech from Discord voice channels.
+* Translates conversations into multiple languages at the same time.
+* Posts transcriptions and translations directly in the voice channel's side chat.
+* Supports multiple people speaking, including overlapping speakers.
+* Lets you add or remove translation languages without restarting the session.
+* Uses BCP 47 language tags, allowing you to request languages beyond a fixed built-in list.
+* Automatically leaves an empty voice channel after a configurable timeout.
+* Can optionally be paired with [**Voicely Text**](https://discord.com/application-directory/1290741552158609419) to read translated messages aloud.
 
-You do NOT run voice-worker.mjs yourself. The Python bot launches it automatically.
+## Adding Voicely Translate to Your Server
 
-The Node worker only handles Discord voice receive and Opus -> PCM decoding.
-The Python process still handles slash commands, per-user utterance buffering, OpenAI transcription/translation, and posting to the voice channel side chat.
+Add Voicely Translate to your Discord server using the [this invite link](https://discord.com/oauth2/authorize?client_id=1535789654974930964).
 
-If you later run this on Raspberry Pi and want lower CPU use for Opus decoding, you can try installing @discordjs/opus and removing opusscript, but opusscript is included here because it is easier to install across Windows and Linux.
+Once installed, its commands are available as Discord slash commands.
+
+To start translating, join a normal Discord voice channel and use:
+
+`/join`
+
+You must already be inside the voice channel that you want Voicely Translate to join.
+
+## Starting a Translation Session
+
+Use:
+
+`/join languages:<language tags>`
+
+The `languages` option determines which languages the conversation should be translated into.
+
+Separate multiple languages with commas.
+
+For example:
+
+`/join languages:en,ja`
+
+This starts a translation session with English and Japanese enabled.
+
+You can enable as many languages as you need:
+
+`/join languages:en,ja,es,fr,de,ko`
+
+Once connected, Voicely Translate will post its transcriptions and translations in the **side chat belonging to that voice channel**.
+
+## Language Tags
+
+Voicely Translate uses language tags rather than language names.
+
+For example:
+
+* `en` — English
+* `ja` — Japanese
+* `es` — Spanish
+* `fr` — French
+* `de` — German
+* `ko` — Korean
+* `zh` — Chinese
+* `haw` — Hawaiian
+
+Regional and script-specific BCP 47 tags can also be used, such as `pt-BR` or `zh-TW`.
+
+Use:
+
+`/languages`
+
+to see a reference list of common language tags.
+
+The bot is **not limited to the languages shown by `/languages`**. You can also try other valid BCP 47 language tags.
+
+## Changing Languages While Translating
+
+You don't have to make the bot leave and rejoin just to change languages.
+
+### Add languages
+
+Use:
+
+`/add languages:<language tags>`
+
+For example:
+
+`/add languages:fr,ko`
+
+adds French and Korean to the current translation session.
+
+### Remove languages
+
+Use:
+
+`/remove languages:<language tags>`
+
+For example:
+
+`/remove languages:en,fr`
+
+removes English and French from the current translation session.
+
+Removing a language only affects future translations. The bot can continue translating into any languages that remain enabled.
+
+### See active languages
+
+Use:
+
+`/active`
+
+to see which translation languages are currently enabled.
+
+## Stopping Translation
+
+Use:
+
+`/leave`
+
+to stop the current translation session and make Voicely Translate leave the voice channel.
+
+The bot can also automatically leave when nobody remains in the voice channel.
+
+## Empty Voice Channel Timeout
+
+Server administrators can control how long Voicely Translate waits in an empty voice channel before automatically leaving.
+
+Use:
+
+`/timeout seconds:<seconds>`
+
+For example:
+
+`/timeout seconds:60`
+
+makes the bot wait 60 seconds after the voice channel becomes empty.
+
+The default timeout is **30 seconds**.
+
+This command requires the **Administrator** permission.
+
+## Voicely Credits
+
+Voicely Translate uses a credit system to pay for the transcription and translation services required to process voice conversations.
+
+**100 Voicely Credits = $1.00 USD.**
+
+New servers currently receive **50 free trial credits**.
+
+Credits are consumed as speech is transcribed and translated. The amount used can vary depending on how much people speak and how many translations are requested.
+
+Enabling more translation languages can increase usage because each transcription needs to be translated into the requested languages.
+
+### Check your balance
+
+Use:
+
+`/balance`
+
+to see:
+
+* Available credits
+* Remaining free trial credits
+* Purchased credits
+
+### Check usage
+
+Use:
+
+`/usage`
+
+to see the server's accumulated usage, including:
+
+* Total API usage
+* Transcription usage
+* Translation usage
+* Total purchased credits
+
+Credit balances and usage belong to the **Discord server**, not to an individual Discord user.
+
+## Adding More Credits
+
+Server administrators can use:
+
+`/topup`
+
+Voicely Translate will provide a unique top-up code for the server and instructions for purchasing additional credit through Ko-fi.
+
+When making the payment, include the provided top-up code in the Ko-fi payment message.
+
+Every **$1.00 USD adds 100 Voicely Credits**.
+
+After making a payment, use:
+
+`/balance`
+
+or simply start the bot with `/join`.
+
+Voicely Translate will automatically check for newly purchased credit.
+
+The `/topup` command requires the **Administrator** permission.
+
+## How Translation Works
+
+When someone speaks in the voice channel, Voicely Translate processes that person's speech independently.
+
+The basic process is:
+
+1. Voicely Translate receives the speaker's voice audio.
+2. The audio is transcribed into the language actually being spoken.
+3. The transcription is translated into the currently enabled languages.
+4. The original transcription and translations are posted in the voice channel's side chat.
+
+Because speakers are processed independently, the bot is designed to handle conversations where multiple people may speak at or near the same time.
+
+Short pauses are used to determine when an utterance has finished before it is sent for transcription.
+
+Nonverbal sounds and standalone hesitation noises may be ignored rather than posted as messages.
+
+## Example
+
+Imagine three people are in a voice channel and English, Japanese, and Spanish are enabled.
+
+Someone says:
+
+> Are we ready to go?
+
+Voicely Translate can post the original transcription along with translations such as:
+
+**Original — English**
+Are we ready to go?
+
+**Japanese**
+もう行く準備はできた？
+
+**Spanish**
+¿Estamos listos para irnos?
+
+The exact formatting and translations may vary.
+
+## Command Reference
+
+| Command      | Description                                                           |
+| ------------ | --------------------------------------------------------------------- |
+| `/join`      | Join your current voice channel and begin translating.                |
+| `/add`       | Add one or more translation languages to the active session.          |
+| `/remove`    | Remove one or more translation languages from the active session.     |
+| `/active`    | Show the currently enabled translation languages.                     |
+| `/languages` | Show common language tags that can be used with the bot.              |
+| `/leave`     | Stop translating and leave the voice channel.                         |
+| `/balance`   | Show the server's remaining Voicely Credits.                          |
+| `/usage`     | Show the server's transcription and translation usage.                |
+| `/topup`     | Get instructions for adding more Voicely Credits. Administrator only. |
+| `/timeout`   | Change the empty-channel timeout. Administrator only.                 |
+
+## Using Voicely Text
+
+Voicely Translate is designed to display translations as text.
+
+If you also want translated messages to be **read aloud in the voice channel**, you can use Voicely Translate alongside [**Voicely Text**](https://discord.com/application-directory/1290741552158609419).
+
+When Voicely Translate joins a server that does not have Voicely Text installed, it may provide a link for adding it.
+
+## Tips for Better Results
+
+For the best transcription and translation quality:
+
+* Speak clearly and at a normal volume.
+* Avoid extremely loud background music or noise.
+* Use the most appropriate language tags for the conversation.
+* Remember that automated transcription and translation can make mistakes, especially with names, slang, very short utterances, heavy background noise, or ambiguous speech.
+* Use regional language tags when the distinction is important.
+
+## Privacy and Voice Processing
+
+Voicely Translate must process voice audio in order to provide transcription and translation.
+
+Server owners should make sure that people using a voice channel understand that the bot is transcribing the conversation while it is present.
+
+The bot only begins a translation session after someone explicitly uses `/join`, and `/leave` can be used to stop the session.
+
+## About Voicely Translate
+
+Voicely Translate is designed to make multilingual Discord voice conversations easier by putting the original speech and translations together in the same place where the conversation is happening.
+
+Instead of requiring everyone in a call to speak the same language, participants can speak naturally while using the voice channel's side chat to follow the conversation in the languages they understand.

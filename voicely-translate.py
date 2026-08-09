@@ -2249,7 +2249,7 @@ class TranslationCommands(commands.Cog):
 
             join_message = (
                 f"Joined **{voice_channel.name}**.\n"
-                f"Translating into: **{languages_text}**\n"
+                f"Translating into: **{languages_text}**\n\n"
                 "Transcriptions and translations will be posted in this "
                 "voice channel's side chat."
             )

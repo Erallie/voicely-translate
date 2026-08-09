@@ -526,16 +526,14 @@ class TranslationSession:
                     f"max_consecutive={max_consecutive} frames"
                 )
 
-                transcript = await self._transcribe(pcm)
-
-                if not transcript:
-                    return
-
-                # Take a snapshot so /add or /remove can safely change the
-                # live session while this particular utterance is translating.
                 target_languages = self.languages.copy()
 
                 if not target_languages:
+                    return
+
+                transcript = await self._transcribe(pcm, target_languages)
+
+                if not transcript:
                     return
 
                 result = await self._translate(transcript, target_languages)
@@ -557,7 +555,11 @@ class TranslationSession:
                     f"{member} ({member.id}): {error!r}"
                 )
 
-    async def _transcribe(self, pcm: bytes) -> str:
+    async def _transcribe(
+        self,
+        pcm: bytes,
+        languages: list[str],
+    ) -> str:
         wav_bytes = make_wav_bytes(pcm)
 
         print(
@@ -565,9 +567,16 @@ class TranslationSession:
             f"of audio for transcription..."
         )
 
+        language_list = ", ".join(languages)
+
         response = await openai_client.audio.transcriptions.create(
             model=TRANSCRIPTION_MODEL,
             file=("speech.wav", wav_bytes, "audio/wav"),
+            prompt=(
+                f"The speaker is speaking one of these languages: {language_list}. "
+                "Transcribe the speech in the language actually spoken. "
+                "Do not transcribe the speech into any other languages than those listed."
+            ),
         )
 
         text = response.text.strip()
@@ -577,13 +586,13 @@ class TranslationSession:
         return text
 
     async def _translate(
-        self,
-        transcript: str,
-        target_languages: list[str],
-    ) -> dict:
+    self,
+    transcript: str,
+    target_languages: list[str],
+) -> dict:
         """
-        Detect the transcript's original language and translate it into every
-        requested language in a single model request.
+        Detect the transcript's original language from the enabled languages only,
+        and translate it into every other enabled language.
         """
         language_list = json.dumps(target_languages, ensure_ascii=False)
 
@@ -596,26 +605,26 @@ class TranslationSession:
                     "role": "system",
                     "content": (
                         "You are a live voice-chat translator. "
-                        "Determine the language of the supplied transcript and "
-                        "identify it using the most appropriate BCP 47 language tag, "
-                        "such as en, ja, es, pt-BR, or zh-Hant-TW. "
-                        "Translate the transcript accurately and naturally into each "
-                        "requested BCP 47 target language tag. Preserve names, tone, "
-                        "slang, questions, and meaning. Do not censor or add commentary. "
-                        "Do not replace requested tags with language names. "
-                        "If a requested target tag represents the same language/locale "
-                        "as the original speech, omit it from translations because "
-                        "the original transcript will already be displayed. "
+                        f"The supplied transcript is in one of these languages: "
+                        f"{language_list}. "
+                        "Choose the language that best matches the transcript. "
+                        "Translate the transcript accurately and naturally into each of the other "
+                        f"languages in {language_list}. "
+                        "Preserve names, tone, slang, questions, and meaning. "
+                        "Do not censor or add commentary. "
+                        "Do not include a translation for the language selected as the "
+                        "original language because the original transcript will already "
+                        "be displayed. "
                         "Return JSON only in this exact shape: "
                         '{"original_language":"BCP 47 tag",'
-                        '"translations":{"Requested BCP 47 tag":"Translated text"}}'
+                        '"translations":{"BCP 47 tag":"Translated text"}}'
                     ),
                 },
                 {
                     "role": "user",
                     "content": (
                         f"Transcript:\n{transcript}\n\n"
-                        f"Requested languages:\n{language_list}"
+                        f"Allowed languages:\n{language_list}"
                     ),
                 },
             ],
@@ -624,9 +633,18 @@ class TranslationSession:
         raw = response.choices[0].message.content or "{}"
         data = json.loads(raw)
 
-        original_language = normalize_language_tag(
-            str(data.get("original_language", "und"))
-        ) or "und"
+        returned_original = normalize_language_tag(
+            str(data.get("original_language", ""))
+        )
+
+        original_language = next(
+            (
+                language
+                for language in target_languages
+                if language.casefold() == returned_original.casefold()
+            ),
+            target_languages[0],
+        )
 
         raw_translations = data.get("translations", {})
 
@@ -635,15 +653,17 @@ class TranslationSession:
 
         translations = {}
 
-        # Only accept languages the session actually requested.
         for requested in target_languages:
+            if requested.casefold() == original_language.casefold():
+                continue
+
             for returned_language, translated_text in raw_translations.items():
                 if returned_language.casefold() == requested.casefold():
                     translations[requested] = str(translated_text).strip()
                     break
 
         return {
-            "original_language": original_language or "Unknown",
+            "original_language": original_language,
             "translations": translations,
         }
 
@@ -663,7 +683,7 @@ class TranslationSession:
 
         sections = [
             f"🗣️ **{display_name}**",
-            f"**Original · {original_language}**\n{transcript}",
+            f"**Original** `{original_language}`\n{transcript}",
         ]
 
         for language in target_languages:
@@ -671,7 +691,7 @@ class TranslationSession:
 
             if translated_text:
                 sections.append(
-                    f"**{language}**\n{translated_text}"
+                    f"`{language}`\n{translated_text}"
                 )
 
         message = "\n\n".join(sections)

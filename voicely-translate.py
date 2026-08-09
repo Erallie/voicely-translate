@@ -92,7 +92,7 @@ TRANSLATION_OUTPUT_USD_PER_MILLION = 0.60
 
 # Optional multiplier for operating/payment-processing overhead.
 # 1.0 means users are charged only the calculated API token cost.
-USAGE_COST_MULTIPLIER = 1.0
+USAGE_COST_MULTIPLIER = 1.5
 
 # Ko-fi / Cloudflare Worker integration.
 KOFI_URL = os.environ.get("KOFI_URL", "").strip()

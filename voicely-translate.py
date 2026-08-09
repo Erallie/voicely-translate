@@ -1175,7 +1175,7 @@ class TranslationCommands(commands.Cog):
                     "Transcriptions and translations will be posted in this "
                     "voice channel's side chat."
                 ),
-                ephemeral=True,
+                ephemeral=False,
             )
 
         except Exception as error:
@@ -1223,7 +1223,7 @@ class TranslationCommands(commands.Cog):
 
         await interaction.response.send_message(
             f"Added: **{', '.join(added)}**",
-            ephemeral=True,
+            ephemeral=False,
         )
 
     @app_commands.command(
@@ -1269,7 +1269,7 @@ class TranslationCommands(commands.Cog):
 
         await interaction.response.send_message(
             f"Removed: **{', '.join(removed)}**{extra}",
-            ephemeral=True,
+            ephemeral=False,
         )
 
     @app_commands.command(

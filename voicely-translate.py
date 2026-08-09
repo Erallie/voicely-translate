@@ -5,6 +5,7 @@ import json
 import os
 import time
 import wave
+from array import array
 from pathlib import Path
 from dataclasses import dataclass, field
 
@@ -13,6 +14,7 @@ from discord import app_commands
 from discord.ext import commands
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
+import webrtcvad
 
 
 # ============================================================
@@ -40,6 +42,12 @@ MIN_UTTERANCE_SECONDS = 0.30
 
 # Flush very long uninterrupted speech periodically.
 MAX_UTTERANCE_SECONDS = 25.0
+
+# WebRTC voice activity detection. 0 is least aggressive, 3 is most aggressive.
+VAD_AGGRESSIVENESS = 3
+VAD_FRAME_MS = 30
+VAD_MIN_SPEECH_RATIO = 0.35
+VAD_MIN_CONSECUTIVE_SPEECH_FRAMES = 4
 
 # How frequently the bot checks whether an utterance has ended.
 BUFFER_CHECK_INTERVAL = 0.10
@@ -258,6 +266,66 @@ def pcm_duration_seconds(pcm: bytes) -> float:
     return len(pcm) / bytes_per_second
 
 
+def stereo_pcm_to_mono(pcm: bytes) -> bytes:
+    """Convert 16-bit little-endian stereo PCM to 16-bit mono PCM."""
+    samples = array("h")
+    samples.frombytes(pcm)
+
+    if len(samples) < 2:
+        return b""
+
+    if os.sys.byteorder != "little":
+        samples.byteswap()
+
+    mono = array("h")
+    mono.extend(
+        (int(samples[index]) + int(samples[index + 1])) // 2
+        for index in range(0, len(samples) - 1, 2)
+    )
+
+    if os.sys.byteorder != "little":
+        mono.byteswap()
+
+    return mono.tobytes()
+
+
+def contains_speech(pcm: bytes) -> tuple[bool, float, int]:
+    """Return whether an utterance contains enough human speech for STT."""
+    mono_pcm = stereo_pcm_to_mono(pcm)
+    frame_bytes = PCM_SAMPLE_RATE * PCM_SAMPLE_WIDTH * VAD_FRAME_MS // 1000
+
+    if frame_bytes <= 0 or len(mono_pcm) < frame_bytes:
+        return False, 0.0, 0
+
+    vad = webrtcvad.Vad(VAD_AGGRESSIVENESS)
+    speech_frames = 0
+    total_frames = 0
+    consecutive = 0
+    max_consecutive = 0
+
+    for start in range(0, len(mono_pcm) - frame_bytes + 1, frame_bytes):
+        frame = mono_pcm[start:start + frame_bytes]
+        total_frames += 1
+
+        if vad.is_speech(frame, PCM_SAMPLE_RATE):
+            speech_frames += 1
+            consecutive += 1
+            max_consecutive = max(max_consecutive, consecutive)
+        else:
+            consecutive = 0
+
+    if total_frames == 0:
+        return False, 0.0, 0
+
+    speech_ratio = speech_frames / total_frames
+    is_speech = (
+        speech_ratio >= VAD_MIN_SPEECH_RATIO
+        and max_consecutive >= VAD_MIN_CONSECUTIVE_SPEECH_FRAMES
+    )
+
+    return is_speech, speech_ratio, max_consecutive
+
+
 def split_discord_message(text: str, limit: int = 1900) -> list[str]:
     """
     Split long translation output without exceeding Discord's 2,000
@@ -442,6 +510,22 @@ class TranslationSession:
                 return
 
             try:
+                has_speech, speech_ratio, max_consecutive = contains_speech(pcm)
+
+                if not has_speech:
+                    print(
+                        f"[VAD] Ignoring non-speech audio from {member} ({member.id}); "
+                        f"speech={speech_ratio:.0%}, "
+                        f"max_consecutive={max_consecutive} frames"
+                    )
+                    return
+
+                print(
+                    f"[VAD] Speech detected from {member} ({member.id}); "
+                    f"speech={speech_ratio:.0%}, "
+                    f"max_consecutive={max_consecutive} frames"
+                )
+
                 transcript = await self._transcribe(pcm)
 
                 if not transcript:

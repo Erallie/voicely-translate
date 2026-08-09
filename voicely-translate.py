@@ -927,8 +927,9 @@ class TranslationCommands(commands.Cog):
         interaction: discord.Interaction,
     ) -> None:
         lines = [
-            "**Language tags**",
-            "Use these with `/join`, `/add`, and `/remove`.",
+            "**Common language tags**",
+            "These are common language tags you can use with `/join`, `/add`, and `/remove`.",
+            "Voicely Translate is not limited to this list—you can enter other valid BCP 47 language tags as well.",
             "",
         ]
 
@@ -945,8 +946,7 @@ class TranslationCommands(commands.Cog):
 
         lines.extend([
             "",
-            "This is a reference list, not a hard-coded limit. "
-            "You can also enter other valid BCP 47 language tags.",
+            "If a language is not listed above, you can still try its BCP 47 language tag.",
         ])
 
         chunks = split_discord_message("\n".join(lines))

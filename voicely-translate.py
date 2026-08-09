@@ -680,10 +680,10 @@ class TranslationSession:
         VoiceChannel.send() posts directly into the text chat attached to that
         voice channel.
         """
-        display_name = member.display_name
+        user_mention = member.mention
 
         sections = [
-            f"### 🗣️ {display_name}",
+            f"### 🗣️ {user_mention}",
             f"**Original · `{original_language}`**: {transcript}",
         ]
 

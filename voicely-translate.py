@@ -2247,13 +2247,23 @@ class TranslationCommands(commands.Cog):
 
             languages_text = ", ".join(requested_languages)
 
+            join_message = (
+                f"Joined **{voice_channel.name}**.\n"
+                f"Translating into: **{languages_text}**\n"
+                "Transcriptions and translations will be posted in this "
+                "voice channel's side chat."
+            )
+
+            voicely_text_bot_id = 1290741552158609419
+
+            if interaction.guild.get_member(voicely_text_bot_id) is None:
+                join_message += (
+                    "\nTo read translations out loud, use "
+                    "[**Voicely Text**](https://discord.com/application-directory/1290741552158609419)."
+                )
+
             await interaction.followup.send(
-                (
-                    f"Joined **{voice_channel.name}**.\n"
-                    f"Translating into: **{languages_text}**\n"
-                    "Transcriptions and translations will be posted in this "
-                    "voice channel's side chat."
-                ),
+                join_message,
                 ephemeral=False,
             )
 

@@ -52,16 +52,19 @@ permissions, and deletion behavior applies to that message.
 
 ### Usage and Credit Information
 
-The Service may process and store information such as:
+The Service may process and store the following information to track usage, manage credits, and process credit purchases:
 
--   Purchased and promotional credit balances.
--   Usage amounts and calculated usage costs.
--   Trial usage.
--   Server-specific top-up codes.
--   Payment-event identifiers used to prevent duplicate credit
-    activation.
--   Information necessary to associate a valid credit purchase with the
-    correct Discord server.
+- Purchased and promotional credit balances.
+- Usage amounts and calculated usage costs.
+- Trial usage.
+- Discord server IDs.
+- Server-specific `VT-XXXXXX` top-up codes.
+- Ko-fi transaction or message IDs used to identify payments and prevent duplicate credit activation.
+- Purchase amounts and currency.
+- Ko-fi Shop item identifiers used to verify that a purchase is for Voicely Translate Credits.
+- Whether a payment has already been claimed and applied to a Discord server.
+
+A server-specific `VT-XXXXXX` top-up code is associated with a Discord server ID. When that code is included with a qualifying Ko-fi purchase, the Service uses it to determine which Discord server should receive the purchased credits.
 
 ### Purchase Information
 

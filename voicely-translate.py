@@ -447,8 +447,7 @@ def ensure_guild_account(guild_id: int) -> None:
         )
         connection.commit()
 
-
-def get_idle_timeout_seconds(guild_id: int) -> int | None:
+def get_idle_timeout_seconds(guild_id: int) -> int:
     ensure_guild_account(guild_id)
 
     with sqlite3.connect(DATABASE_FILE) as connection:
@@ -461,15 +460,15 @@ def get_idle_timeout_seconds(guild_id: int) -> int | None:
             (guild_id,),
         ).fetchone()
 
-    if row is None:
+    if row is None or row[0] is None:
         return DEFAULT_IDLE_TIMEOUT_SECONDS
 
-    return row[0]
+    return int(row[0])
 
 
 def set_idle_timeout_seconds(
     guild_id: int,
-    timeout_seconds: int | None,
+    timeout_seconds: int,
 ) -> None:
     ensure_guild_account(guild_id)
 
@@ -480,10 +479,9 @@ def set_idle_timeout_seconds(
             SET idle_timeout_seconds = ?
             WHERE guild_id = ?
             """,
-            (timeout_seconds, guild_id),
+            (int(timeout_seconds), guild_id),
         )
         connection.commit()
-
 
 def _generate_topup_code() -> str:
     alphabet = string.ascii_uppercase + string.digits
@@ -1007,10 +1005,6 @@ class TranslationSession:
         timeout_seconds = get_idle_timeout_seconds(
             self.voice_channel.guild.id
         )
-
-        if timeout_seconds is None:
-            self.cancel_idle_timeout()
-            return
 
         if (
             self.idle_timeout_task is None
@@ -2574,21 +2568,15 @@ class TranslationCommands(commands.Cog):
             ephemeral=True,
         )
 
-    timeout = app_commands.Group(
+    @app_commands.command(
         name="timeout",
-        description="Configure the empty voice-channel timeout.",
-        default_permissions=discord.Permissions(administrator=True),
-    )
-
-    @timeout.command(
-        name="set",
         description="Set how many seconds the bot waits before leaving an empty voice channel.",
     )
     @app_commands.describe(
         seconds="Seconds to wait before leaving an empty voice channel"
     )
     @app_commands.checks.has_permissions(administrator=True)
-    async def timeout_set(
+    async def timeout(
         self,
         interaction: discord.Interaction,
         seconds: app_commands.Range[int, 1, 86400],
@@ -2613,70 +2601,6 @@ class TranslationCommands(commands.Cog):
 
         await interaction.response.send_message(
             f"Empty-channel timeout set to **{seconds} seconds**.",
-            ephemeral=True,
-        )
-
-    @timeout.command(
-        name="off",
-        description="Disable automatic leaving when the voice channel is empty.",
-    )
-    @app_commands.checks.has_permissions(administrator=True)
-    async def timeout_off(
-        self,
-        interaction: discord.Interaction,
-    ) -> None:
-        if interaction.guild_id is None:
-            await interaction.response.send_message(
-                "This command can only be used in a server.",
-                ephemeral=True,
-            )
-            return
-
-        set_idle_timeout_seconds(
-            interaction.guild_id,
-            None,
-        )
-
-        session = sessions.get(interaction.guild_id)
-
-        if session is not None and not session.closed:
-            session.cancel_idle_timeout()
-
-        await interaction.response.send_message(
-            "Empty-channel timeout disabled.",
-            ephemeral=True,
-        )
-
-    @timeout.command(
-        name="show",
-        description="Show the current empty voice-channel timeout.",
-    )
-    @app_commands.checks.has_permissions(administrator=True)
-    async def timeout_show(
-        self,
-        interaction: discord.Interaction,
-    ) -> None:
-        if interaction.guild_id is None:
-            await interaction.response.send_message(
-                "This command can only be used in a server.",
-                ephemeral=True,
-            )
-            return
-
-        timeout_seconds = get_idle_timeout_seconds(
-            interaction.guild_id
-        )
-
-        if timeout_seconds is None:
-            message = "Empty-channel timeout is currently **disabled**."
-        else:
-            message = (
-                f"Empty-channel timeout is currently "
-                f"**{timeout_seconds} seconds**."
-            )
-
-        await interaction.response.send_message(
-            message,
             ephemeral=True,
         )
 

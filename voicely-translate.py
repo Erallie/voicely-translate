@@ -598,21 +598,42 @@ def record_api_usage(
     transcription_microusd: int = 0,
     translation_microusd: int = 0,
 ) -> None:
-    if guild_id in UNLIMITED_CREDIT_GUILD_IDS:
-        return
-
     ensure_guild_account(guild_id)
 
-    total_cost = max(
-        0,
-        int(transcription_microusd) + int(translation_microusd),
-    )
+    transcription_cost = max(0, int(transcription_microusd))
+    translation_cost = max(0, int(translation_microusd))
+    total_cost = transcription_cost + translation_cost
 
     if total_cost <= 0:
         return
 
     with sqlite3.connect(DATABASE_FILE) as connection:
         connection.execute("BEGIN IMMEDIATE")
+
+        # Unlimited guilds still track their real API usage, but their
+        # trial/paid balances are never reduced.
+        if guild_id in UNLIMITED_CREDIT_GUILD_IDS:
+            connection.execute(
+                """
+                UPDATE guild_settings
+                SET
+                    total_used_microusd = total_used_microusd + ?,
+                    transcription_used_microusd =
+                        transcription_used_microusd + ?,
+                    translation_used_microusd =
+                        translation_used_microusd + ?
+                WHERE guild_id = ?
+                """,
+                (
+                    total_cost,
+                    transcription_cost,
+                    translation_cost,
+                    guild_id,
+                ),
+            )
+
+            connection.commit()
+            return
 
         row = connection.execute(
             """
@@ -653,8 +674,8 @@ def record_api_usage(
                 trial_spend,
                 paid_spend,
                 total_cost,
-                max(0, int(transcription_microusd)),
-                max(0, int(translation_microusd)),
+                transcription_cost,
+                translation_cost,
                 guild_id,
             ),
         )

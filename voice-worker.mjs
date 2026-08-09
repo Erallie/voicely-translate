@@ -27,6 +27,7 @@ const client = new Client({
 const connections = new Map();
 let socket;
 let incomingBuffer = '';
+let shuttingDown = false;
 
 function send(payload) {
     if (!socket || socket.destroyed) {
@@ -220,6 +221,8 @@ async function handleMessage(message) {
             break;
 
         case 'shutdown':
+            shuttingDown = true;
+
             for (const guildId of [...connections.keys()]) {
                 cleanupGuild(guildId);
             }
@@ -279,12 +282,22 @@ function connectToPython() {
     });
 
     socket.on('error', (error) => {
-        console.error('Python bridge socket error:', error);
+        console.error('Python bridge socket error:', error.message);
     });
 
     socket.on('close', () => {
-        console.error('Python bridge socket closed. Exiting voice worker.');
-        process.exit(1);
+        if (shuttingDown) {
+            return;
+        }
+
+        console.error('Python bridge socket closed. Reconnecting...');
+
+        socket = undefined;
+        incomingBuffer = '';
+
+        setTimeout(() => {
+            connectToPython();
+        }, 1000);
     });
 }
 

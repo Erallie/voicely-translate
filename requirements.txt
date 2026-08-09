@@ -1,3 +1,4 @@
 discord.py[voice]
 discord-ext-voice-recv
 openai
+python-dotenv

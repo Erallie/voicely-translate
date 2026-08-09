@@ -10,14 +10,17 @@ import discord
 from discord import app_commands
 from discord.ext import commands, voice_recv
 from openai import AsyncOpenAI
+from dotenv import load_dotenv
 
 
 # ============================================================
 # Configuration
 # ============================================================
 
+load_dotenv()
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+GUILD_ID = int(os.environ["GUILD_ID"])
 
 TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
 TRANSLATION_MODEL = "gpt-4o-mini"
@@ -525,7 +528,17 @@ intents = discord.Intents.default()
 intents.guilds = True
 intents.voice_states = True
 
-bot = commands.Bot(
+
+class TranslationBot(commands.Bot):
+    async def setup_hook(self) -> None:
+        await self.add_cog(TranslationCommands(self))
+
+        guild = discord.Object(id=GUILD_ID)
+        self.tree.copy_global_to(guild=guild)
+        await self.tree.sync(guild=guild)
+
+
+bot = TranslationBot(
     command_prefix=commands.when_mentioned,
     intents=intents,
 )
@@ -837,8 +850,6 @@ async def on_voice_state_update(
 
 async def main() -> None:
     async with bot:
-        await bot.add_cog(TranslationCommands(bot))
-        await bot.tree.sync()
         await bot.start(DISCORD_TOKEN)
 
 

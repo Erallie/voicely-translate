@@ -30,6 +30,7 @@ import webrtcvad
 load_dotenv()
 DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+GUILD_ID = int(os.environ["GUILD_ID"])
 
 TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
 TRANSLATION_MODEL = "gpt-4o-mini"
@@ -2068,10 +2069,20 @@ class TranslationBot(commands.Bot):
     voice_bridge: VoiceWorkerBridge
 
     async def setup_hook(self) -> None:
-        self.tree.clear_commands(guild=None)
-        await self.tree.sync()
+        self.voice_bridge = VoiceWorkerBridge(self)
+        await self.voice_bridge.start()
 
-        print("[COMMANDS] Cleared global slash commands.")
+        await self.add_cog(TranslationCommands(self))
+
+        guild = discord.Object(id=GUILD_ID)
+
+        self.tree.copy_global_to(guild=guild)
+        synced_commands = await self.tree.sync(guild=guild)
+
+        print(
+            f"[COMMANDS] Synced {len(synced_commands)} slash command(s) "
+            f"to guild {GUILD_ID}."
+        )
 
     async def close(self) -> None:
         if hasattr(self, "voice_bridge"):

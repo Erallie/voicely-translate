@@ -210,8 +210,11 @@ law.
 ## 16. Contact
 
 Questions about these Terms, billing issues, or Voicely Translate should
-be directed to the contact method provided by the operator of Voicely
-Translate.
+be directed to Gozar Productions LLC through the official support server or our email:
+
+Official support server: https://discord.gozarproductions.com
+
+Email: contact@gozarproductions.com
 
 ------------------------------------------------------------------------
 

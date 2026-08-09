@@ -2437,7 +2437,7 @@ class TranslationCommands(commands.Cog):
 
         await interaction.response.send_message(
             text,
-            ephemeral=True,
+            ephemeral=False,
         )
 
     @app_commands.command(

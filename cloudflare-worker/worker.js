@@ -1,4 +1,4 @@
-const TOPUP_CODE_PATTERN = /\bVT-[A-Z0-9]{6}\b/i;
+const TOPUP_CODE_PATTERN = /\\bVT-[A-Z0-9]{6}\\b/i;
 
 function jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -35,21 +35,19 @@ function decimalUsdToMicrousd(value) {
     );
 }
 
-async function parseKofiPayload(request) {
-    const contentType = request.headers.get("content-type") || "";
-
+function parseKofiPayloadFromRawBody(rawBody, contentType) {
     if (contentType.includes("application/x-www-form-urlencoded")) {
-        const form = await request.formData();
-        const rawData = form.get("data");
+        const params = new URLSearchParams(rawBody);
+        const rawData = params.get("data");
 
         if (!rawData) {
             throw new Error("Missing Ko-fi data field.");
         }
 
-        return JSON.parse(String(rawData));
+        return JSON.parse(rawData);
     }
 
-    const body = await request.json();
+    const body = JSON.parse(rawBody);
 
     if (body && typeof body.data === "string") {
         return JSON.parse(body.data);
@@ -178,22 +176,12 @@ async function handleClaim(request, env) {
     });
 }
 
-async function handleKofiWebhook(request, env) {
-    let payload;
-
-    try {
-        payload = await parseKofiPayload(request);
-    } catch (error) {
-        console.error("Could not parse Ko-fi webhook:", error);
-        return jsonResponse({ error: "Invalid webhook payload" }, 400);
-    }
-
+async function processKofiPayment(payload, env) {
     if (
         !env.KOFI_VERIFICATION_TOKEN
         || payload?.verification_token !== env.KOFI_VERIFICATION_TOKEN
     ) {
-        console.error("Rejected Ko-fi webhook with invalid verification token.");
-        return jsonResponse({ error: "Invalid verification token" }, 401);
+        throw new Error("INVALID_VERIFICATION_TOKEN");
     }
 
     const messageId = String(
@@ -206,7 +194,7 @@ async function handleKofiWebhook(request, env) {
     const topupCode = normalizeCode(payload.message);
 
     if (!messageId) {
-        return jsonResponse({ error: "Missing payment message_id" }, 400);
+        throw new Error("MISSING_MESSAGE_ID");
     }
 
     if (currency !== "USD") {
@@ -214,23 +202,23 @@ async function handleKofiWebhook(request, env) {
             `Ignoring Ko-fi payment ${messageId}: unsupported currency ${currency}`
         );
 
-        return jsonResponse({
+        return {
             ok: true,
             ignored: true,
             reason: "Only USD payments are currently supported.",
-        });
+        };
     }
 
     let amountMicrousd;
 
     try {
         amountMicrousd = decimalUsdToMicrousd(payload.amount);
-    } catch (error) {
-        return jsonResponse({ error: "Invalid payment amount" }, 400);
+    } catch {
+        throw new Error("INVALID_PAYMENT_AMOUNT");
     }
 
     if (amountMicrousd <= 0) {
-        return jsonResponse({ error: "Payment amount must be positive" }, 400);
+        throw new Error("INVALID_PAYMENT_AMOUNT");
     }
 
     let guildId = null;
@@ -279,10 +267,126 @@ async function handleKofiWebhook(request, env) {
         + `code=${topupCode || "none"}, guild=${guildId || "unmatched"}`
     );
 
-    // Ko-fi expects a 200 response for successfully received webhooks.
-    return jsonResponse({
+    return {
         ok: true,
         matched: Boolean(guildId),
+    };
+}
+
+async function forwardWebhook(rawBody, contentType, env) {
+    if (!env.EXISTING_WEBHOOK_URL) {
+        console.warn(
+            "EXISTING_WEBHOOK_URL is not configured; webhook was not forwarded."
+        );
+
+        return {
+            forwarded: false,
+            reason: "EXISTING_WEBHOOK_URL is not configured.",
+        };
+    }
+
+    const response = await fetch(env.EXISTING_WEBHOOK_URL, {
+        method: "POST",
+        headers: {
+            "content-type": contentType || "application/x-www-form-urlencoded",
+        },
+        body: rawBody,
+    });
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+        console.error(
+            `Existing webhook returned HTTP ${response.status}: ${responseText}`
+        );
+
+        return {
+            forwarded: false,
+            status: response.status,
+        };
+    }
+
+    console.log(
+        `Forwarded Ko-fi webhook successfully; HTTP ${response.status}.`
+    );
+
+    return {
+        forwarded: true,
+        status: response.status,
+    };
+}
+
+async function handleKofiWebhook(request, env) {
+    const contentType = request.headers.get("content-type") || "";
+    const rawBody = await request.text();
+
+    let payload;
+
+    try {
+        payload = parseKofiPayloadFromRawBody(rawBody, contentType);
+    } catch (error) {
+        console.error("Could not parse Ko-fi webhook:", error);
+
+        return jsonResponse({
+            error: "Invalid webhook payload",
+        }, 400);
+    }
+
+    let voicelyResult;
+
+    try {
+        voicelyResult = await processKofiPayment(payload, env);
+    } catch (error) {
+        if (error instanceof Error && error.message === "INVALID_VERIFICATION_TOKEN") {
+            console.error(
+                "Rejected Ko-fi webhook with invalid verification token."
+            );
+
+            return jsonResponse({
+                error: "Invalid verification token",
+            }, 401);
+        }
+
+        if (error instanceof Error && error.message === "MISSING_MESSAGE_ID") {
+            return jsonResponse({
+                error: "Missing payment message_id",
+            }, 400);
+        }
+
+        if (error instanceof Error && error.message === "INVALID_PAYMENT_AMOUNT") {
+            return jsonResponse({
+                error: "Invalid payment amount",
+            }, 400);
+        }
+
+        console.error("Voicely Ko-fi processing failed:", error);
+
+        return jsonResponse({
+            error: "Voicely payment processing failed",
+        }, 500);
+    }
+
+    let forwardResult;
+
+    try {
+        forwardResult = await forwardWebhook(
+            rawBody,
+            contentType,
+            env,
+        );
+    } catch (error) {
+        console.error("Could not forward Ko-fi webhook:", error);
+
+        forwardResult = {
+            forwarded: false,
+            error: error instanceof Error ? error.message : String(error),
+        };
+    }
+
+    return jsonResponse({
+        ok: true,
+        voicely: voicelyResult,
+        forwarding: forwardResult,
     });
 }
 

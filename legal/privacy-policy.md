@@ -65,16 +65,17 @@ The Service may process and store information such as:
 
 ### Purchase Information
 
-When credits are purchased through Ko-fi, the Service may receive
-information included in Ko-fi's webhook notification, such as
-transaction identifiers, purchase amount, currency, shop-item
-information, and the message supplied with the order.
+When credits are purchased through Ko-fi, the Service receives information included in Ko-fi's webhook notification that is necessary to verify and process the purchase. This may include:
 
-The Service uses the `VT-XXXXXX` code in the order message to associate
-purchased credits with a Discord server.
+- The Ko-fi transaction/message ID.
+- The purchase amount and currency.
+- The purchased Shop item's identifier.
+- The message included with the order.
+- The server-specific `VT-XXXXXX` code contained in that message.
 
-Payment-card or bank-account details are processed by the payment
-provider and are not required by Voicely Translate to activate credits.
+The `VT-XXXXXX` code is associated with a Discord server ID so that purchased credits can be assigned to the correct Discord server.
+
+Payment-card and bank-account details are processed by Ko-fi and its payment providers and are not received or stored by Voicely Translate.
 
 ### Technical and Diagnostic Information
 

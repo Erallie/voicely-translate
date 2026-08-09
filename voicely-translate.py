@@ -736,6 +736,7 @@ def _worker_request_sync(
     headers = {
         "Authorization": f"Bearer {KOFI_BOT_API_SECRET}",
         "Accept": "application/json",
+        "User-Agent": "Voicely-Translate/1.0",
     }
 
     if payload is not None:

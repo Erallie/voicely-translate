@@ -46,7 +46,7 @@ MAX_UTTERANCE_SECONDS = 25.0
 # WebRTC voice activity detection. 0 is least aggressive, 3 is most aggressive.
 VAD_AGGRESSIVENESS = 3
 VAD_FRAME_MS = 30
-VAD_MIN_SPEECH_RATIO = 0.45
+VAD_MIN_SPEECH_RATIO = 0.5
 VAD_MIN_CONSECUTIVE_SPEECH_FRAMES = 6
 
 # How frequently the bot checks whether an utterance has ended.

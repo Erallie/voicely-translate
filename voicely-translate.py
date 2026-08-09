@@ -536,6 +536,12 @@ class TranslationSession:
                 if not transcript:
                     return
 
+                if transcript.strip().casefold() == "[laughter]":
+                    print(
+                        f"[VOICE] Ignoring laughter from {member} ({member.id})."
+                    )
+                    return
+
                 result = await self._translate(transcript, target_languages)
 
                 if self.closed:
@@ -576,7 +582,9 @@ class TranslationSession:
                 f"The speaker is speaking one of these languages: {language_list}. "
                 "Transcribe the speech in the language actually spoken. "
                 "Do not transcribe the speech into any other languages than those listed. "
-                "Favor sentences and phrases that make more sense as something someone would naturally say."
+                "Favor sentences and phrases that make more sense as something someone would naturally say. "
+                "If the audio contains only laughter, giggling, chuckling, or other nonverbal "
+                "laughter with no spoken words, return exactly [LAUGHTER] and nothing else."
             ),
         )
 

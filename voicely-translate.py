@@ -684,7 +684,7 @@ class TranslationSession:
 
         sections = [
             f"### 🗣️ {display_name}",
-            f"**Original · {original_language}**: {transcript}",
+            f"**Original · `{original_language}`**: {transcript}",
         ]
 
         for language in target_languages:
@@ -692,7 +692,7 @@ class TranslationSession:
 
             if translated_text:
                 sections.append(
-                    f"**{language}**: {translated_text}"
+                    f"**`{language}`**: {translated_text}"
                 )
 
         message = "\n\n".join(sections)

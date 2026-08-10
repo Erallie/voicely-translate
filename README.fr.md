@@ -57,5 +57,5 @@ De courtes pauses déterminent la fin d'une intervention. Les sons non verbaux e
 ## Qualité et confidentialité
 Parlez clairement et évitez les bruits forts. La transcription automatique peut se tromper sur les noms, l'argot ou l'audio ambigu. Le bot doit traiter l'audio pour fournir le service ; les membres du salon doivent savoir que la conversation est transcrite pendant sa présence. La session commence avec `/join` et s'arrête avec `/leave`.
 
-# Assistance
+## Assistance
 Si vous rencontrez un problème avec le bot ou souhaitez demander une fonctionnalité, créez une [issue](https://github.com/Erallie/voicely-translate/issues) et je ferai de mon mieux pour y répondre !

@@ -298,5 +298,5 @@ Voicely Translate is designed to make multilingual Discord voice conversations e
 
 Instead of requiring everyone in a call to speak the same language, participants can speak naturally while using the voice channel's side chat to follow the conversation in the languages they understand.
 
-# Support
+## Support
 If you have any problems with the bot or want to request a feature, please create an [issue](https://github.com/Erallie/voicely-translate/issues), and I will address it to the best of my ability!

@@ -54,5 +54,5 @@ Kurze Pausen markieren das Ende einer Äußerung. Rein nonverbale Geräusche und
 ## Qualität und Datenschutz
 Sprich deutlich und vermeide starken Hintergrundlärm. Automatische Systeme können bei Namen, Slang oder mehrdeutigem Audio Fehler machen. Der Bot muss Sprachdaten verarbeiten; Personen im Kanal sollten wissen, dass während seiner Anwesenheit transkribiert wird.
 
-# Support
+## Support
 Wenn du Probleme mit dem Bot hast oder eine Funktion vorschlagen möchtest, erstelle bitte ein [Issue](https://github.com/Erallie/voicely-translate/issues). Ich werde mich nach besten Kräften darum kümmern!

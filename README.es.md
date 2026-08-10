@@ -129,5 +129,5 @@ Voicely Translate debe procesar audio de voz para transcribirlo y traducirlo. Lo
 
 Voicely Translate facilita las conversaciones multilingües en Discord al colocar el habla original y sus traducciones en el mismo lugar donde ocurre la conversación.
 
-# Soporte
+## Soporte
 Si tienes algún problema con el bot o quieres solicitar una función, crea un [issue](https://github.com/Erallie/voicely-translate/issues) y haré todo lo posible por atenderlo.

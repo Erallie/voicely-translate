@@ -54,5 +54,5 @@ Jeda singkat digunakan untuk menentukan akhir ucapan. Suara nonverbal dan suara 
 ## Kualitas dan privasi
 Bicaralah dengan jelas dan hindari musik atau kebisingan latar yang keras. Sistem otomatis dapat salah pada nama, slang, ucapan sangat singkat, atau audio ambigu. Bot harus memproses audio suara untuk menyediakan layanan; peserta perlu mengetahui bahwa percakapan ditranskripsikan selama bot hadir.
 
-# Dukungan
+## Dukungan
 Jika Anda mengalami masalah dengan bot atau ingin meminta fitur, silakan buat [issue](https://github.com/Erallie/voicely-translate/issues), dan saya akan menanganinya sebaik mungkin!

@@ -1266,14 +1266,9 @@ class TranslationSession:
         )
 
         try:
+            guild_locale = getattr(self.voice_channel.guild, "preferred_locale", "en-US")
             await self.voice_channel.send(
-                (
-                    "### Voicely Translate credit exhausted\n"
-                    "This server has used all of its available translation "
-                    "credit, so I'm leaving the voice channel.\n"
-                    "An administrator can use `/topup` to add more credit "
-                    "through Ko-fi."
-                ),
+                tr_locale(guild_locale, "credit_exhausted"),
                 allowed_mentions=discord.AllowedMentions.none(),
             )
         except Exception as error:
@@ -2112,326 +2107,91 @@ class VoiceWorkerBridge:
 
 
 # ============================================================
-# Discord localization
+# User-facing localization
 # ============================================================
 
-SUPPORTED_UI_LOCALES = {
-    "en": "en-US",
-    "es": "es-ES",
-    "pt": "pt-BR",
-    "fr": "fr",
-    "de": "de",
-    "ja": "ja",
-    "ko": "ko",
-    "zh": "zh-CN",
-    "ru": "ru",
-    "ar": "ar",
-    "hi": "hi",
-    "id": "id",
+# Discord selects interaction.locale from the user's client language. English is
+# the fallback. Arabic is included for explicit/manual use, although Discord
+# currently does not expose Arabic as an application-command localization locale.
+UI_LANG_ALIASES = {
+    "en": "en", "es": "es", "pt": "pt", "fr": "fr", "de": "de", "ja": "ja",
+    "ko": "ko", "zh": "zh", "ru": "ru", "ar": "ar", "hi": "hi", "id": "id",
 }
 
-UI_TEXT = {
+UI = {
     "server_only": {
-        "en": "This command can only be used in a server.",
-        "es": "Este comando solo se puede usar en un servidor.",
-        "pt": "Este comando só pode ser usado em um servidor.",
-        "fr": "Cette commande ne peut être utilisée que dans un serveur.",
-        "de": "Dieser Befehl kann nur auf einem Server verwendet werden.",
-        "ja": "このコマンドはサーバー内でのみ使用できます。",
-        "ko": "이 명령어는 서버에서만 사용할 수 있습니다.",
-        "zh": "此命令只能在服务器中使用。",
-        "ru": "Эту команду можно использовать только на сервере.",
-        "ar": "لا يمكن استخدام هذا الأمر إلا داخل خادم.",
-        "hi": "इस कमांड का उपयोग केवल सर्वर में किया जा सकता है।",
-        "id": "Perintah ini hanya dapat digunakan di server.",
-    },
+        "en":tr(interaction, "server_only"),"es":"Este comando solo se puede usar en un servidor.","pt":"Este comando só pode ser usado em um servidor.","fr":"Cette commande ne peut être utilisée que dans un serveur.","de":"Dieser Befehl kann nur auf einem Server verwendet werden.","ja":"このコマンドはサーバー内でのみ使用できます。","ko":"이 명령어는 서버에서만 사용할 수 있습니다.","zh":"此命令只能在服务器中使用。","ru":"Эту команду можно использовать только на сервере.","ar":"لا يمكن استخدام هذا الأمر إلا داخل خادم.","hi":"इस कमांड का उपयोग केवल सर्वर में किया जा सकता है।","id":"Perintah ini hanya dapat digunakan di server."},
     "no_session": {
-        "en": "I'm not currently translating a voice channel in this server.",
-        "es": "Actualmente no estoy traduciendo ningún canal de voz en este servidor.",
-        "pt": "No momento, não estou traduzindo nenhum canal de voz neste servidor.",
-        "fr": "Je ne traduis actuellement aucun salon vocal sur ce serveur.",
-        "de": "Ich übersetze derzeit keinen Sprachkanal auf diesem Server.",
-        "ja": "現在、このサーバーではボイスチャンネルを翻訳していません。",
-        "ko": "현재 이 서버에서 음성 채널을 번역하고 있지 않습니다.",
-        "zh": "我目前没有在此服务器中翻译任何语音频道。",
-        "ru": "Сейчас я не перевожу голосовой канал на этом сервере.",
-        "ar": "لا أقوم حاليًا بترجمة أي قناة صوتية في هذا الخادم.",
-        "hi": "मैं इस सर्वर में अभी किसी वॉइस चैनल का अनुवाद नहीं कर रहा हूँ।",
-        "id": "Saat ini saya tidak sedang menerjemahkan kanal suara di server ini.",
-    },
+        "en":tr(interaction, "no_session"),"es":"Actualmente no estoy traduciendo ningún canal de voz en este servidor.","pt":"No momento, não estou traduzindo nenhum canal de voz neste servidor.","fr":"Je ne traduis actuellement aucun salon vocal sur ce serveur.","de":"Ich übersetze derzeit keinen Sprachkanal auf diesem Server.","ja":"現在、このサーバーではボイスチャンネルを翻訳していません。","ko":"현재 이 서버에서 음성 채널을 번역하고 있지 않습니다.","zh":"我目前没有在此服务器中翻译任何语音频道。","ru":"Сейчас я не перевожу голосовой канал на этом сервере.","ar":"لا أقوم حاليًا بترجمة أي قناة صوتية في هذا الخادم.","hi":"मैं इस सर्वर में अभी किसी वॉइस चैनल का अनुवाद नहीं कर रहा हूँ।","id":"Saat ini saya tidak sedang menerjemahkan kanal suara di server ini."},
+    "unknown_voice": {
+        "en":tr(interaction, "unknown_voice"),"es":"No pude determinar tu canal de voz.","pt":"Não consegui determinar seu canal de voz.","fr":"Je n'ai pas pu déterminer votre salon vocal.","de":"Ich konnte deinen Sprachkanal nicht bestimmen.","ja":"あなたのボイスチャンネルを確認できませんでした。","ko":"사용자의 음성 채널을 확인할 수 없습니다.","zh":"无法确定你所在的语音频道。","ru":"Не удалось определить ваш голосовой канал.","ar":"تعذر تحديد قناتك الصوتية.","hi":"आपका वॉइस चैनल निर्धारित नहीं किया जा सका।","id":"Saya tidak dapat menentukan kanal suara Anda."},
     "need_voice": {
-        "en": tr(interaction, "need_voice"),
-        "es": "Primero debes estar en un canal de voz.",
-        "pt": "Você precisa estar em um canal de voz primeiro.",
-        "fr": "Vous devez d'abord être dans un salon vocal.",
-        "de": "Du musst zuerst in einem Sprachkanal sein.",
-        "ja": "先にボイスチャンネルに参加してください。",
-        "ko": "먼저 음성 채널에 들어가 있어야 합니다.",
-        "zh": "你需要先加入一个语音频道。",
-        "ru": "Сначала нужно войти в голосовой канал.",
-        "ar": "يجب أن تكون في قناة صوتية أولًا.",
-        "hi": "आपको पहले किसी वॉइस चैनल में होना होगा।",
-        "id": "Anda harus berada di kanal suara terlebih dahulu.",
-    },
+        "en":tr(interaction, "need_voice"),"es":"Primero debes estar en un canal de voz.","pt":"Você precisa estar em um canal de voz primeiro.","fr":"Vous devez d'abord être dans un salon vocal.","de":"Du musst zuerst in einem Sprachkanal sein.","ja":"先にボイスチャンネルに参加してください。","ko":"먼저 음성 채널에 들어가 있어야 합니다.","zh":"你需要先加入一个语音频道。","ru":"Сначала нужно войти в голосовой канал.","ar":"يجب أن تكون في قناة صوتية أولًا.","hi":"आपको पहले किसी वॉइस चैनल में होना होगा।","id":"Anda harus berada di kanal suara terlebih dahulu."},
     "normal_voice": {
-        "en": tr(interaction, "normal_voice"),
-        "es": "Usa este comando desde un canal de voz normal.",
-        "pt": "Use este comando em um canal de voz normal.",
-        "fr": "Veuillez utiliser cette commande depuis un salon vocal normal.",
-        "de": "Bitte verwende diesen Befehl in einem normalen Sprachkanal.",
-        "ja": "通常のボイスチャンネルから使用してください。",
-        "ko": "일반 음성 채널에서 사용해 주세요.",
-        "zh": "请在普通语音频道中使用此命令。",
-        "ru": "Используйте эту команду в обычном голосовом канале.",
-        "ar": "يرجى استخدام هذا الأمر من قناة صوتية عادية.",
-        "hi": "कृपया इसे सामान्य वॉइस चैनल से उपयोग करें।",
-        "id": "Gunakan perintah ini dari kanal suara biasa.",
-    },
+        "en":tr(interaction, "normal_voice"),"es":"Usa este comando desde un canal de voz normal.","pt":"Use este comando em um canal de voz normal.","fr":"Veuillez utiliser cette commande depuis un salon vocal normal.","de":"Bitte verwende diesen Befehl in einem normalen Sprachkanal.","ja":"通常のボイスチャンネルから使用してください。","ko":"일반 음성 채널에서 사용해 주세요.","zh":"请在普通语音频道中使用此命令。","ru":"Используйте эту команду в обычном голосовом канале.","ar":"يرجى استخدام هذا الأمر من قناة صوتية عادية.","hi":"कृपया इसे सामान्य वॉइस चैनल से उपयोग करें।","id":"Gunakan perintah ini dari kanal suara biasa."},
     "no_credit": {
-        "en": "This server has no Voicely Translate credit remaining.\nUse `/topup` to add more credit through Ko-fi.",
-        "es": "A este servidor no le quedan créditos de Voicely Translate.\nUsa `/topup` para añadir más créditos mediante Ko-fi.",
-        "pt": "Este servidor não tem mais créditos do Voicely Translate.\nUse `/topup` para adicionar créditos pelo Ko-fi.",
-        "fr": "Ce serveur n'a plus de crédits Voicely Translate.\nUtilisez `/topup` pour ajouter des crédits via Ko-fi.",
-        "de": "Dieser Server hat keine Voicely-Translate-Credits mehr.\nVerwende `/topup`, um über Ko-fi weitere Credits hinzuzufügen.",
-        "ja": "このサーバーにはVoicely Translateクレジットが残っていません。\n`/topup` でKo-fiからクレジットを追加できます。",
-        "ko": "이 서버에는 Voicely Translate 크레딧이 남아 있지 않습니다.\n`/topup`을 사용해 Ko-fi에서 크레딧을 추가하세요.",
-        "zh": "此服务器已没有剩余的 Voicely Translate 点数。\n使用 `/topup` 通过 Ko-fi 添加更多点数。",
-        "ru": "На этом сервере не осталось кредитов Voicely Translate.\nИспользуйте `/topup`, чтобы добавить кредиты через Ko-fi.",
-        "ar": "لم يتبقَّ لهذا الخادم أي رصيد Voicely Translate.\nاستخدم `/topup` لإضافة رصيد عبر Ko-fi.",
-        "hi": "इस सर्वर में कोई Voicely Translate क्रेडिट शेष नहीं है।\nKo-fi के माध्यम से और क्रेडिट जोड़ने के लिए `/topup` का उपयोग करें।",
-        "id": "Server ini tidak memiliki kredit Voicely Translate yang tersisa.\nGunakan `/topup` untuk menambah kredit melalui Ko-fi.",
-    },
+        "en":"This server has no Voicely Translate credit remaining.\nUse `/topup` to add more credit through Ko-fi.","es":"A este servidor no le quedan créditos de Voicely Translate.\nUsa `/topup` para añadir más créditos mediante Ko-fi.","pt":"Este servidor não tem mais créditos do Voicely Translate.\nUse `/topup` para adicionar créditos pelo Ko-fi.","fr":"Ce serveur n'a plus de crédits Voicely Translate.\nUtilisez `/topup` pour ajouter des crédits via Ko-fi.","de":"Dieser Server hat keine Voicely-Translate-Credits mehr.\nVerwende `/topup`, um über Ko-fi weitere Credits hinzuzufügen.","ja":"このサーバーにはVoicely Translateクレジットが残っていません。\n`/topup` でKo-fiからクレジットを追加できます。","ko":"이 서버에는 Voicely Translate 크레딧이 남아 있지 않습니다.\n`/topup`을 사용해 Ko-fi에서 크레딧을 추가하세요.","zh":"此服务器已没有剩余的 Voicely Translate 点数。\n使用 `/topup` 通过 Ko-fi 添加更多点数。","ru":"На этом сервере не осталось кредитов Voicely Translate.\nИспользуйте `/topup`, чтобы добавить кредиты через Ko-fi.","ar":"لم يتبقَّ لهذا الخادم أي رصيد Voicely Translate.\nاستخدم `/topup` لإضافة رصيد عبر Ko-fi.","hi":"इस सर्वर में कोई Voicely Translate क्रेडिट शेष नहीं है।\nKo-fi के माध्यम से और क्रेडिट जोड़ने के लिए `/topup` का उपयोग करें।","id":"Server ini tidak memiliki kredit Voicely Translate yang tersisa.\nGunakan `/topup` untuk menambah kredit melalui Ko-fi."},
     "provide_language": {
-        "en": tr(interaction, "provide_language"),
-        "es": "Indica al menos una etiqueta de idioma, separada por comas.",
-        "pt": "Informe pelo menos uma tag de idioma, separada por vírgulas.",
-        "fr": "Indiquez au moins une balise de langue, séparée par des virgules.",
-        "de": "Gib mindestens ein Sprach-Tag an, durch Kommas getrennt.",
-        "ja": "カンマ区切りで少なくとも1つの言語タグを指定してください。",
-        "ko": "쉼표로 구분하여 언어 태그를 하나 이상 입력해 주세요.",
-        "zh": "请提供至少一个语言标签，并用逗号分隔。",
-        "ru": "Укажите хотя бы один языковой тег, разделяя их запятыми.",
-        "ar": "يرجى إدخال وسم لغة واحد على الأقل، مع الفصل بفواصل.",
-        "hi": "कम-से-कम एक भाषा टैग दें, और कई टैग को कॉमा से अलग करें।",
-        "id": "Berikan setidaknya satu tag bahasa, dipisahkan dengan koma.",
-    },
+        "en":tr(interaction, "provide_language"),"es":"Indica al menos una etiqueta de idioma, separada por comas.","pt":"Informe pelo menos uma tag de idioma, separada por vírgulas.","fr":"Indiquez au moins une balise de langue, séparée par des virgules.","de":"Gib mindestens ein Sprach-Tag an, durch Kommas getrennt.","ja":"カンマ区切りで少なくとも1つの言語タグを指定してください。","ko":"쉼표로 구분하여 언어 태그를 하나 이상 입력해 주세요.","zh":"请提供至少一个语言标签，并用逗号分隔。","ru":"Укажите хотя бы один языковой тег, разделяя их запятыми.","ar":"يرجى إدخال وسم لغة واحد على الأقل، مع الفصل بفواصل.","hi":"कम-से-कम एक भाषा टैग दें और कई टैग को कॉमा से अलग करें।","id":"Berikan setidaknya satu tag bahasa, dipisahkan dengan koma."},
     "already_enabled": {
-        "en": tr(interaction, "already_enabled"),
-        "es": "Esos idiomas ya están habilitados.",
-        "pt": "Esses idiomas já estão ativados.",
-        "fr": "Ces langues sont déjà activées.",
-        "de": "Diese Sprachen sind bereits aktiviert.",
-        "ja": "これらの言語はすでに有効です。",
-        "ko": "해당 언어는 이미 활성화되어 있습니다.",
-        "zh": "这些语言已启用。",
-        "ru": "Эти языки уже включены.",
-        "ar": "هذه اللغات مفعّلة بالفعل.",
-        "hi": "ये भाषाएँ पहले से सक्षम हैं।",
-        "id": "Bahasa tersebut sudah diaktifkan.",
-    },
+        "en":tr(interaction, "already_enabled"),"es":"Esos idiomas ya están habilitados.","pt":"Esses idiomas já estão ativados.","fr":"Ces langues sont déjà activées.","de":"Diese Sprachen sind bereits aktiviert.","ja":"これらの言語はすでに有効です。","ko":"해당 언어는 이미 활성화되어 있습니다.","zh":"这些语言已启用。","ru":"Эти языки уже включены.","ar":"هذه اللغات مفعّلة بالفعل.","hi":"ये भाषाएँ पहले से सक्षम हैं।","id":"Bahasa tersebut sudah diaktifkan."},
+    "none_requested_enabled": {
+        "en":tr(interaction, "none_requested_enabled"),"es":"Ninguno de esos idiomas está habilitado actualmente.","pt":"Nenhum desses idiomas está ativado no momento.","fr":"Aucune de ces langues n'est actuellement activée.","de":"Keine dieser Sprachen ist derzeit aktiviert.","ja":"指定された言語は現在どれも有効ではありません。","ko":"해당 언어 중 현재 활성화된 언어가 없습니다.","zh":"这些语言目前都未启用。","ru":"Ни один из этих языков сейчас не включён.","ar":"لا توجد أي من هذه اللغات مفعّلة حاليًا.","hi":"इनमें से कोई भी भाषा अभी सक्षम नहीं है।","id":"Tidak satu pun dari bahasa tersebut sedang aktif."},
     "none_enabled": {
-        "en": tr(interaction, "none_enabled"),
-        "es": "Actualmente no hay idiomas de traducción habilitados.",
-        "pt": "Nenhum idioma de tradução está ativado no momento.",
-        "fr": "Aucune langue de traduction n'est actuellement activée.",
-        "de": "Derzeit sind keine Übersetzungssprachen aktiviert.",
-        "ja": "現在、有効な翻訳言語はありません。",
-        "ko": "현재 활성화된 번역 언어가 없습니다.",
-        "zh": "当前没有启用任何翻译语言。",
-        "ru": "Сейчас ни один язык перевода не включён.",
-        "ar": "لا توجد لغات ترجمة مفعّلة حاليًا.",
-        "hi": "अभी कोई अनुवाद भाषा सक्षम नहीं है।",
-        "id": "Saat ini tidak ada bahasa terjemahan yang diaktifkan.",
-    },
-    "left": {
-        "en": tr(interaction, "left"),
-        "es": "Se detuvo la traducción y salí del canal de voz.",
-        "pt": "A tradução foi interrompida e saí do canal de voz.",
-        "fr": "La traduction a été arrêtée et j'ai quitté le salon vocal.",
-        "de": "Die Übersetzung wurde beendet und ich habe den Sprachkanal verlassen.",
-        "ja": "翻訳を停止し、ボイスチャンネルから退出しました。",
-        "ko": "번역을 중지하고 음성 채널에서 나갔습니다.",
-        "zh": "已停止翻译并离开语音频道。",
-        "ru": "Перевод остановлен, я вышел из голосового канала.",
-        "ar": "تم إيقاف الترجمة ومغادرة القناة الصوتية.",
-        "hi": "अनुवाद बंद कर दिया गया और वॉइस चैनल छोड़ दिया गया।",
-        "id": "Penerjemahan dihentikan dan saya keluar dari kanal suara.",
-    },
+        "en":tr(interaction, "none_enabled"),"es":"Actualmente no hay idiomas de traducción habilitados.","pt":"Nenhum idioma de tradução está ativado no momento.","fr":"Aucune langue de traduction n'est actuellement activée.","de":"Derzeit sind keine Übersetzungssprachen aktiviert.","ja":"現在、有効な翻訳言語はありません。","ko":"현재 활성화된 번역 언어가 없습니다.","zh":"当前没有启用任何翻译语言。","ru":"Сейчас ни один язык перевода не включён.","ar":"لا توجد لغات ترجمة مفعّلة حاليًا.","hi":"अभी कोई अनुवाद भाषा सक्षम नहीं है।","id":"Saat ini tidak ada bahasa terjemahan yang diaktifkan."},
+    "added": {"en":"Added: **{languages}**","es":"Añadidos: **{languages}**","pt":"Adicionados: **{languages}**","fr":"Ajoutées : **{languages}**","de":"Hinzugefügt: **{languages}**","ja":"追加しました: **{languages}**","ko":"추가됨: **{languages}**","zh":"已添加：**{languages}**","ru":"Добавлено: **{languages}**","ar":"تمت الإضافة: **{languages}**","hi":"जोड़ा गया: **{languages}**","id":"Ditambahkan: **{languages}**"},
+    "removed": {"en":"Removed: **{languages}**","es":"Eliminados: **{languages}**","pt":"Removidos: **{languages}**","fr":"Retirées : **{languages}**","de":"Entfernt: **{languages}**","ja":"削除しました: **{languages}**","ko":"제거됨: **{languages}**","zh":"已移除：**{languages}**","ru":"Удалено: **{languages}**","ar":"تمت الإزالة: **{languages}**","hi":"हटाया गया: **{languages}**","id":"Dihapus: **{languages}**"},
+    "still_enabled": {"en":"Still enabled: **{languages}**","es":"Aún habilitados: **{languages}**","pt":"Ainda ativados: **{languages}**","fr":"Toujours activées : **{languages}**","de":"Weiterhin aktiviert: **{languages}**","ja":"引き続き有効: **{languages}**","ko":"계속 활성화됨: **{languages}**","zh":"仍启用：**{languages}**","ru":"Остаются включёнными: **{languages}**","ar":"لا تزال مفعّلة: **{languages}**","hi":"अभी भी सक्षम: **{languages}**","id":"Masih aktif: **{languages}**"},
+    "active": {"en":"Currently translating into: **{languages}**","es":"Traduciendo actualmente a: **{languages}**","pt":"Traduzindo atualmente para: **{languages}**","fr":"Traduction actuelle vers : **{languages}**","de":"Aktuelle Übersetzung in: **{languages}**","ja":"現在の翻訳先: **{languages}**","ko":"현재 번역 언어: **{languages}**","zh":"当前翻译为：**{languages}**","ru":"Сейчас переводится на: **{languages}**","ar":"الترجمة حاليًا إلى: **{languages}**","hi":"अभी इन भाषाओं में अनुवाद: **{languages}**","id":"Saat ini menerjemahkan ke: **{languages}**"},
+    "already_translating": {"en":"I'm already translating **{channel}**. Use `/add`, `/remove`, `/active`, `/languages`, or `/leave`.","es":"Ya estoy traduciendo **{channel}**. Usa `/add`, `/remove`, `/active`, `/languages` o `/leave`.","pt":"Já estou traduzindo **{channel}**. Use `/add`, `/remove`, `/active`, `/languages` ou `/leave`.","fr":"Je traduis déjà **{channel}**. Utilisez `/add`, `/remove`, `/active`, `/languages` ou `/leave`.","de":"Ich übersetze bereits **{channel}**. Verwende `/add`, `/remove`, `/active`, `/languages` oder `/leave`.","ja":"すでに **{channel}** を翻訳しています。`/add`、`/remove`、`/active`、`/languages`、`/leave` を使用してください。","ko":"이미 **{channel}**을 번역하고 있습니다. `/add`, `/remove`, `/active`, `/languages`, `/leave`를 사용하세요.","zh":"我已经在翻译 **{channel}**。请使用 `/add`、`/remove`、`/active`、`/languages` 或 `/leave`。","ru":"Я уже перевожу **{channel}**. Используйте `/add`, `/remove`, `/active`, `/languages` или `/leave`.","ar":"أقوم بالفعل بترجمة **{channel}**. استخدم `/add` أو `/remove` أو `/active` أو `/languages` أو `/leave`.","hi":"मैं पहले से **{channel}** का अनुवाद कर रहा हूँ। `/add`, `/remove`, `/active`, `/languages` या `/leave` का उपयोग करें।","id":"Saya sudah menerjemahkan **{channel}**. Gunakan `/add`, `/remove`, `/active`, `/languages`, atau `/leave`."},
+    "join": {"en":"Joined **{channel}**.\nTranslating into: **{languages}**\n\nTranscriptions and translations will be posted in this voice channel's side chat.","es":"Me uní a **{channel}**.\nTraduciendo a: **{languages}**\n\nLas transcripciones y traducciones se publicarán en el chat lateral de este canal de voz.","pt":"Entrei em **{channel}**.\nTraduzindo para: **{languages}**\n\nAs transcrições e traduções serão publicadas no chat lateral deste canal de voz.","fr":"J'ai rejoint **{channel}**.\nTraduction vers : **{languages}**\n\nLes transcriptions et traductions seront publiées dans le chat latéral de ce salon vocal.","de":"**{channel}** beigetreten.\nÜbersetzung in: **{languages}**\n\nTranskriptionen und Übersetzungen werden im Seitenchat dieses Sprachkanals veröffentlicht.","ja":"**{channel}** に参加しました。\n翻訳先: **{languages}**\n\n文字起こしと翻訳はこのボイスチャンネルのサイドチャットに投稿されます。","ko":"**{channel}**에 참가했습니다.\n번역 언어: **{languages}**\n\n받아쓰기와 번역은 이 음성 채널의 사이드 채팅에 게시됩니다.","zh":"已加入 **{channel}**。\n翻译为：**{languages}**\n\n转录和翻译将发布到此语音频道的侧边聊天中。","ru":"Подключился к **{channel}**.\nПеревод на: **{languages}**\n\nТранскрипции и переводы будут публиковаться в боковом чате этого голосового канала.","ar":"تم الانضمام إلى **{channel}**.\nالترجمة إلى: **{languages}**\n\nسيتم نشر النصوص والترجمات في الدردشة الجانبية لهذه القناة الصوتية.","hi":"**{channel}** में जुड़ गया।\nइन भाषाओं में अनुवाद: **{languages}**\n\nट्रांसक्रिप्शन और अनुवाद इस वॉइस चैनल की साइड चैट में पोस्ट होंगे।","id":"Bergabung ke **{channel}**.\nMenerjemahkan ke: **{languages}**\n\nTranskripsi dan terjemahan akan diposting di chat samping kanal suara ini."},
+    "voicely_text": {"en":"To read translations out loud, use [**Voicely Text**](https://discord.com/application-directory/1290741552158609419).","es":"Para leer las traducciones en voz alta, usa [**Voicely Text**](https://discord.com/application-directory/1290741552158609419).","pt":"Para ler as traduções em voz alta, use [**Voicely Text**](https://discord.com/application-directory/1290741552158609419).","fr":"Pour lire les traductions à voix haute, utilisez [**Voicely Text**](https://discord.com/application-directory/1290741552158609419).","de":"Zum Vorlesen der Übersetzungen verwende [**Voicely Text**](https://discord.com/application-directory/1290741552158609419).","ja":"翻訳を読み上げるには [**Voicely Text**](https://discord.com/application-directory/1290741552158609419) を使用してください。","ko":"번역을 소리 내어 읽으려면 [**Voicely Text**](https://discord.com/application-directory/1290741552158609419)를 사용하세요.","zh":"如需朗读翻译，请使用 [**Voicely Text**](https://discord.com/application-directory/1290741552158609419)。","ru":"Чтобы озвучивать переводы, используйте [**Voicely Text**](https://discord.com/application-directory/1290741552158609419).","ar":"لقراءة الترجمات بصوت عالٍ، استخدم [**Voicely Text**](https://discord.com/application-directory/1290741552158609419).","hi":"अनुवाद को आवाज़ में पढ़ने के लिए [**Voicely Text**](https://discord.com/application-directory/1290741552158609419) का उपयोग करें।","id":"Untuk membacakan terjemahan, gunakan [**Voicely Text**](https://discord.com/application-directory/1290741552158609419)."},
+    "join_failed": {"en":"I couldn't join that voice channel: `{error}`","es":"No pude unirme a ese canal de voz: `{error}`","pt":"Não consegui entrar nesse canal de voz: `{error}`","fr":"Je n'ai pas pu rejoindre ce salon vocal : `{error}`","de":"Ich konnte diesem Sprachkanal nicht beitreten: `{error}`","ja":"そのボイスチャンネルに参加できませんでした: `{error}`","ko":"해당 음성 채널에 참가할 수 없습니다: `{error}`","zh":"无法加入该语音频道：`{error}`","ru":"Не удалось войти в этот голосовой канал: `{error}`","ar":"تعذر الانضمام إلى تلك القناة الصوتية: `{error}`","hi":"उस वॉइस चैनल में शामिल नहीं हो सका: `{error}`","id":"Tidak dapat bergabung ke kanal suara tersebut: `{error}`"},
+    "left": {"en":tr(interaction, "left"),"es":"Se detuvo la traducción y salí del canal de voz.","pt":"A tradução foi interrompida e saí do canal de voz.","fr":"La traduction a été arrêtée et j'ai quitté le salon vocal.","de":"Die Übersetzung wurde beendet und ich habe den Sprachkanal verlassen.","ja":"翻訳を停止し、ボイスチャンネルから退出しました。","ko":"번역을 중지하고 음성 채널에서 나갔습니다.","zh":"已停止翻译并离开语音频道。","ru":"Перевод остановлен, я вышел из голосового канала.","ar":"تم إيقاف الترجمة ومغادرة القناة الصوتية.","hi":"अनुवाद बंद कर दिया गया और वॉइस चैनल छोड़ दिया गया।","id":"Penerjemahan dihentikan dan saya keluar dari kanal suara."},
+    "timeout_set": {"en":"Empty-channel timeout set to **{seconds} seconds**.","es":"El tiempo de espera del canal vacío se estableció en **{seconds} segundos**.","pt":"O tempo limite do canal vazio foi definido como **{seconds} segundos**.","fr":"Le délai du salon vide est défini sur **{seconds} secondes**.","de":"Die Wartezeit für einen leeren Kanal wurde auf **{seconds} Sekunden** gesetzt.","ja":"空チャンネルのタイムアウトを **{seconds}秒** に設定しました。","ko":"빈 채널 대기 시간을 **{seconds}초**로 설정했습니다.","zh":"空频道超时已设为 **{seconds} 秒**。","ru":"Таймаут пустого канала установлен на **{seconds} секунд**.","ar":"تم ضبط مهلة القناة الفارغة على **{seconds} ثانية**.","hi":"खाली चैनल की समयसीमा **{seconds} सेकंड** पर सेट की गई।","id":"Batas waktu kanal kosong diatur ke **{seconds} detik**."},
+    "credit_exhausted": {"en":"### Voicely Translate credit exhausted\nThis server has used all of its available translation credit, so I'm leaving the voice channel.\nAn administrator can use `/topup` to add more credit through Ko-fi.","es":"### Créditos de Voicely Translate agotados\nEste servidor ha usado todos sus créditos de traducción disponibles, así que saldré del canal de voz.\nUn administrador puede usar `/topup` para añadir más créditos mediante Ko-fi.","pt":"### Créditos do Voicely Translate esgotados\nEste servidor usou todos os créditos de tradução disponíveis, então vou sair do canal de voz.\nUm administrador pode usar `/topup` para adicionar créditos pelo Ko-fi.","fr":"### Crédits Voicely Translate épuisés\nCe serveur a utilisé tous ses crédits de traduction disponibles, je quitte donc le salon vocal.\nUn administrateur peut utiliser `/topup` pour ajouter des crédits via Ko-fi.","de":"### Voicely-Translate-Credits aufgebraucht\nDieser Server hat sein gesamtes Übersetzungsguthaben verbraucht, daher verlasse ich den Sprachkanal.\nEin Administrator kann mit `/topup` über Ko-fi weitere Credits hinzufügen.","ja":"### Voicely Translateクレジットを使い切りました\nこのサーバーの利用可能な翻訳クレジットがなくなったため、ボイスチャンネルから退出します。\n管理者は `/topup` でKo-fiからクレジットを追加できます。","ko":"### Voicely Translate 크레딧 소진\n이 서버의 사용 가능한 번역 크레딧을 모두 사용했으므로 음성 채널에서 나갑니다.\n관리자는 `/topup`을 사용해 Ko-fi에서 크레딧을 추가할 수 있습니다.","zh":"### Voicely Translate 点数已用尽\n此服务器已用完所有可用翻译点数，因此我将离开语音频道。\n管理员可以使用 `/topup` 通过 Ko-fi 添加更多点数。","ru":"### Кредиты Voicely Translate закончились\nСервер израсходовал все доступные кредиты перевода, поэтому я выхожу из голосового канала.\nАдминистратор может использовать `/topup`, чтобы добавить кредиты через Ko-fi.","ar":"### نفد رصيد Voicely Translate\nاستخدم هذا الخادم كل رصيد الترجمة المتاح، لذلك سأغادر القناة الصوتية.\nيمكن للمسؤول استخدام `/topup` لإضافة رصيد عبر Ko-fi.","hi":"### Voicely Translate क्रेडिट समाप्त\nइस सर्वर ने उपलब्ध सभी अनुवाद क्रेडिट इस्तेमाल कर लिए हैं, इसलिए मैं वॉइस चैनल छोड़ रहा हूँ।\nएडमिन `/topup` से Ko-fi के माध्यम से और क्रेडिट जोड़ सकता है।","id":"### Kredit Voicely Translate habis\nServer ini telah menggunakan seluruh kredit terjemahan yang tersedia, jadi saya akan keluar dari kanal suara.\nAdministrator dapat menggunakan `/topup` untuk menambah kredit melalui Ko-fi."},
 }
 
-def interaction_language(interaction: discord.Interaction) -> str:
-    locale = str(getattr(interaction, "locale", "en-US") or "en-US").replace("_", "-").lower()
-    if locale.startswith("zh"):
-        return "zh"
-    return locale.split("-", 1)[0] if locale.split("-", 1)[0] in SUPPORTED_UI_LOCALES else "en"
+def ui_language_from_locale(locale) -> str:
+    value = str(locale or "en-US").replace("_", "-").lower()
+    primary = value.split("-", 1)[0]
+    return UI_LANG_ALIASES.get(primary, "en")
 
-def tr(interaction: discord.Interaction, key: str) -> str:
-    values = UI_TEXT.get(key, {})
-    language = interaction_language(interaction)
-    return values.get(language, values.get("en", key))
+def tr_locale(locale, key: str, **values) -> str:
+    language = ui_language_from_locale(locale)
+    table = UI.get(key, {})
+    template = table.get(language, table.get("en", key))
+    return template.format(**values)
+
+def tr(interaction: discord.Interaction, key: str, **values) -> str:
+    return tr_locale(getattr(interaction, "locale", "en-US"), key, **values)
 
 COMMAND_LOCALIZATIONS = {
-    "join": {
-        "es": ("unirse", "Únete a tu canal de voz y comienza a traducir."),
-        "pt-BR": ("entrar", "Entre no seu canal de voz e comece a traduzir."),
-        "fr": ("rejoindre", "Rejoignez votre salon vocal et commencez à traduire."),
-        "de": ("beitreten", "Tritt deinem Sprachkanal bei und starte die Übersetzung."),
-        "ja": ("参加", "ボイスチャンネルに参加して翻訳を開始します。"),
-        "ko": ("참가", "음성 채널에 참가하고 번역을 시작합니다."),
-        "zh-CN": ("加入", "加入你的语音频道并开始翻译。"),
-        "ru": ("войти", "Войти в голосовой канал и начать перевод."),
-        "ar": ("انضمام", "انضم إلى قناتك الصوتية وابدأ الترجمة."),
-        "hi": ("जुड़ें", "अपने वॉइस चैनल में जुड़ें और अनुवाद शुरू करें।"),
-        "id": ("gabung", "Gabung ke kanal suara Anda dan mulai menerjemahkan."),
-    },
-    "add": {
-        "es": ("agregar", "Añade idiomas de traducción a la sesión activa."),
-        "pt-BR": ("adicionar", "Adicione idiomas de tradução à sessão ativa."),
-        "fr": ("ajouter", "Ajoutez des langues de traduction à la session active."),
-        "de": ("hinzufügen", "Füge der aktiven Sitzung Übersetzungssprachen hinzu."),
-        "ja": ("追加", "現在のセッションに翻訳言語を追加します。"),
-        "ko": ("추가", "활성 세션에 번역 언어를 추가합니다."),
-        "zh-CN": ("添加", "向当前会话添加翻译语言。"),
-        "ru": ("добавить", "Добавить языки перевода в активный сеанс."),
-        "ar": ("إضافة", "أضف لغات ترجمة إلى الجلسة النشطة."),
-        "hi": ("जोड़ें", "सक्रिय सत्र में अनुवाद भाषाएँ जोड़ें।"),
-        "id": ("tambah", "Tambahkan bahasa terjemahan ke sesi aktif."),
-    },
-    "remove": {
-        "es": ("quitar", "Quita idiomas de traducción de la sesión activa."),
-        "pt-BR": ("remover", "Remova idiomas de tradução da sessão ativa."),
-        "fr": ("retirer", "Retirez des langues de traduction de la session active."),
-        "de": ("entfernen", "Entferne Übersetzungssprachen aus der aktiven Sitzung."),
-        "ja": ("削除", "現在のセッションから翻訳言語を削除します。"),
-        "ko": ("제거", "활성 세션에서 번역 언어를 제거합니다."),
-        "zh-CN": ("移除", "从当前会话移除翻译语言。"),
-        "ru": ("удалить", "Удалить языки перевода из активного сеанса."),
-        "ar": ("إزالة", "أزل لغات الترجمة من الجلسة النشطة."),
-        "hi": ("हटाएँ", "सक्रिय सत्र से अनुवाद भाषाएँ हटाएँ।"),
-        "id": ("hapus", "Hapus bahasa terjemahan dari sesi aktif."),
-    },
-    "active": {
-        "es": ("activos", "Muestra los idiomas de traducción habilitados."),
-        "pt-BR": ("ativos", "Mostra os idiomas de tradução ativados."),
-        "fr": ("actifs", "Affiche les langues de traduction activées."),
-        "de": ("aktiv", "Zeigt die aktuell aktivierten Übersetzungssprachen."),
-        "ja": ("有効", "現在有効な翻訳言語を表示します。"),
-        "ko": ("활성", "현재 활성화된 번역 언어를 표시합니다."),
-        "zh-CN": ("当前", "显示当前启用的翻译语言。"),
-        "ru": ("активные", "Показать включённые языки перевода."),
-        "ar": ("النشطة", "اعرض لغات الترجمة المفعّلة حاليًا."),
-        "hi": ("सक्रिय", "वर्तमान में सक्षम अनुवाद भाषाएँ दिखाएँ।"),
-        "id": ("aktif", "Tampilkan bahasa terjemahan yang sedang aktif."),
-    },
-    "languages": {
-        "es": ("idiomas", "Muestra etiquetas de idioma comunes."),
-        "pt-BR": ("idiomas", "Lista tags de idioma comuns."),
-        "fr": ("langues", "Affiche les balises de langue courantes."),
-        "de": ("sprachen", "Listet häufige Sprach-Tags auf."),
-        "ja": ("言語", "よく使われる言語タグを表示します。"),
-        "ko": ("언어", "일반적인 언어 태그를 표시합니다."),
-        "zh-CN": ("语言", "列出常用语言标签。"),
-        "ru": ("языки", "Показать распространённые языковые теги."),
-        "ar": ("اللغات", "اعرض وسوم اللغات الشائعة."),
-        "hi": ("भाषाएँ", "सामान्य भाषा टैग दिखाएँ।"),
-        "id": ("bahasa", "Tampilkan tag bahasa yang umum."),
-    },
-    "topup": {
-        "es": ("recargar", "Muestra cómo añadir créditos a este servidor."),
-        "pt-BR": ("recarregar", "Mostra como adicionar créditos a este servidor."),
-        "fr": ("recharger", "Affiche comment ajouter des crédits à ce serveur."),
-        "de": ("aufladen", "Zeigt, wie Credits zu diesem Server hinzugefügt werden."),
-        "ja": ("チャージ", "このサーバーにクレジットを追加する方法を表示します。"),
-        "ko": ("충전", "이 서버에 크레딧을 추가하는 방법을 표시합니다."),
-        "zh-CN": ("充值", "显示如何为此服务器添加点数。"),
-        "ru": ("пополнить", "Показать, как добавить кредиты на сервер."),
-        "ar": ("شحن", "اعرض كيفية إضافة رصيد إلى هذا الخادم."),
-        "hi": ("रीचार्ज", "इस सर्वर में क्रेडिट जोड़ने का तरीका दिखाएँ।"),
-        "id": ("isiulang", "Tampilkan cara menambah kredit ke server ini."),
-    },
-    "balance": {
-        "es": ("saldo", "Muestra los créditos restantes del servidor."),
-        "pt-BR": ("saldo", "Mostra os créditos restantes do servidor."),
-        "fr": ("solde", "Affiche les crédits restants du serveur."),
-        "de": ("guthaben", "Zeigt die verbleibenden Credits des Servers."),
-        "ja": ("残高", "サーバーの残りクレジットを表示します。"),
-        "ko": ("잔액", "서버의 남은 크레딧을 표시합니다."),
-        "zh-CN": ("余额", "显示服务器剩余点数。"),
-        "ru": ("баланс", "Показать оставшиеся кредиты сервера."),
-        "ar": ("الرصيد", "اعرض الرصيد المتبقي للخادم."),
-        "hi": ("शेष", "सर्वर के शेष क्रेडिट दिखाएँ।"),
-        "id": ("saldo", "Tampilkan sisa kredit server."),
-    },
-    "usage": {
-        "es": ("uso", "Muestra el uso de Voicely Translate del servidor."),
-        "pt-BR": ("uso", "Mostra o uso do Voicely Translate no servidor."),
-        "fr": ("utilisation", "Affiche l'utilisation de Voicely Translate du serveur."),
-        "de": ("nutzung", "Zeigt die Voicely-Translate-Nutzung des Servers."),
-        "ja": ("使用量", "サーバーのVoicely Translate使用量を表示します。"),
-        "ko": ("사용량", "서버의 Voicely Translate 사용량을 표시합니다."),
-        "zh-CN": ("用量", "显示服务器的 Voicely Translate 使用量。"),
-        "ru": ("расход", "Показать использование Voicely Translate на сервере."),
-        "ar": ("الاستخدام", "اعرض استخدام Voicely Translate في الخادم."),
-        "hi": ("उपयोग", "सर्वर का Voicely Translate उपयोग दिखाएँ।"),
-        "id": ("penggunaan", "Tampilkan penggunaan Voicely Translate server."),
-    },
-    "timeout": {
-        "es": ("espera", "Configura cuánto espera el bot antes de salir de un canal vacío."),
-        "pt-BR": ("espera", "Define quanto o bot espera antes de sair de um canal vazio."),
-        "fr": ("délai", "Définit le délai avant de quitter un salon vocal vide."),
-        "de": ("wartezeit", "Legt fest, wie lange der Bot in einem leeren Kanal wartet."),
-        "ja": ("待機時間", "空のボイスチャンネルから退出するまでの秒数を設定します。"),
-        "ko": ("대기시간", "빈 음성 채널에서 나가기 전 대기 시간을 설정합니다."),
-        "zh-CN": ("超时", "设置机器人离开空语音频道前的等待时间。"),
-        "ru": ("таймаут", "Задать ожидание перед выходом из пустого канала."),
-        "ar": ("المهلة", "حدد مدة الانتظار قبل مغادرة قناة صوتية فارغة."),
-        "hi": ("समयसीमा", "खाली वॉइस चैनल छोड़ने से पहले प्रतीक्षा समय सेट करें।"),
-        "id": ("bataswaktu", "Atur waktu tunggu sebelum bot keluar dari kanal kosong."),
-    },
-    "leave": {
-        "es": ("salir", "Detén la traducción y sal del canal de voz."),
-        "pt-BR": ("sair", "Pare de traduzir e saia do canal de voz."),
-        "fr": ("quitter", "Arrêtez la traduction et quittez le salon vocal."),
-        "de": ("verlassen", "Beendet die Übersetzung und verlässt den Sprachkanal."),
-        "ja": ("退出", "翻訳を停止してボイスチャンネルから退出します。"),
-        "ko": ("나가기", "번역을 중지하고 음성 채널에서 나갑니다."),
-        "zh-CN": ("离开", "停止翻译并离开语音频道。"),
-        "ru": ("выйти", "Остановить перевод и выйти из голосового канала."),
-        "ar": ("مغادرة", "أوقف الترجمة وغادر القناة الصوتية."),
-        "hi": ("छोड़ें", "अनुवाद रोकें और वॉइस चैनल छोड़ें।"),
-        "id": ("keluar", "Hentikan penerjemahan dan keluar dari kanal suara."),
-    },
+    "join":{"es":("unirse","Únete a tu canal de voz y comienza a traducir."),"pt-BR":("entrar","Entre no seu canal de voz e comece a traduzir."),"fr":("rejoindre","Rejoignez votre salon vocal et commencez à traduire."),"de":("beitreten","Tritt deinem Sprachkanal bei und starte die Übersetzung."),"ja":("参加","ボイスチャンネルに参加して翻訳を開始します。"),"ko":("참가","음성 채널에 참가하고 번역을 시작합니다."),"zh-CN":("加入","加入你的语音频道并开始翻译。"),"ru":("войти","Войти в голосовой канал и начать перевод."),"hi":("जुड़ें","अपने वॉइस चैनल में जुड़ें और अनुवाद शुरू करें।"),"id":("gabung","Gabung ke kanal suara Anda dan mulai menerjemahkan。")},
+    "add":{"es":("agregar","Añade idiomas de traducción a la sesión activa."),"pt-BR":("adicionar","Adicione idiomas de tradução à sessão ativa."),"fr":("ajouter","Ajoutez des langues de traduction à la session active."),"de":("hinzufügen","Füge der aktiven Sitzung Übersetzungssprachen hinzu."),"ja":("追加","現在のセッションに翻訳言語を追加します。"),"ko":("추가","활성 세션에 번역 언어를 추가합니다."),"zh-CN":("添加","向当前会话添加翻译语言。"),"ru":("добавить","Добавить языки перевода в активный сеанс."),"hi":("जोड़ें","सक्रिय सत्र में अनुवाद भाषाएँ जोड़ें।"),"id":("tambah","Tambahkan bahasa terjemahan ke sesi aktif.")},
+    "remove":{"es":("quitar","Quita idiomas de traducción de la sesión activa."),"pt-BR":("remover","Remova idiomas de tradução da sessão ativa."),"fr":("retirer","Retirez des langues de traduction de la session active."),"de":("entfernen","Entferne Übersetzungssprachen aus der aktiven Sitzung."),"ja":("削除","現在のセッションから翻訳言語を削除します。"),"ko":("제거","활성 세션에서 번역 언어를 제거합니다."),"zh-CN":("移除","从当前会话移除翻译语言。"),"ru":("удалить","Удалить языки перевода из активного сеанса."),"hi":("हटाएँ","सक्रिय सत्र से अनुवाद भाषाएँ हटाएँ।"),"id":("hapus","Hapus bahasa terjemahan dari sesi aktif.")},
+    "active":{"es":("activos","Muestra los idiomas de traducción habilitados."),"pt-BR":("ativos","Mostra os idiomas de tradução ativados."),"fr":("actifs","Affiche les langues de traduction activées."),"de":("aktiv","Zeigt die aktuell aktivierten Übersetzungssprachen."),"ja":("有効","現在有効な翻訳言語を表示します。"),"ko":("활성","현재 활성화된 번역 언어를 표시합니다."),"zh-CN":("当前","显示当前启用的翻译语言。"),"ru":("активные","Показать включённые языки перевода."),"hi":("सक्रिय","वर्तमान में सक्षम अनुवाद भाषाएँ दिखाएँ।"),"id":("aktif","Tampilkan bahasa terjemahan yang sedang aktif.")},
+    "languages":{"es":("idiomas","Muestra etiquetas de idioma comunes."),"pt-BR":("idiomas","Lista tags de idioma comuns."),"fr":("langues","Affiche les balises de langue courantes."),"de":("sprachen","Listet häufige Sprach-Tags auf."),"ja":("言語","よく使われる言語タグを表示します。"),"ko":("언어","일반적인 언어 태그를 표시합니다."),"zh-CN":("语言","列出常用语言标签。"),"ru":("языки","Показать распространённые языковые теги."),"hi":("भाषाएँ","सामान्य भाषा टैग दिखाएँ।"),"id":("bahasa","Tampilkan tag bahasa yang umum.")},
+    "topup":{"es":("recargar","Muestra cómo añadir créditos a este servidor."),"pt-BR":("recarregar","Mostra como adicionar créditos a este servidor."),"fr":("recharger","Affiche comment ajouter des crédits à ce serveur."),"de":("aufladen","Zeigt, wie Credits zu diesem Server hinzugefügt werden."),"ja":("チャージ","このサーバーにクレジットを追加する方法を表示します。"),"ko":("충전","이 서버에 크레딧을 추가하는 방법을 표시합니다."),"zh-CN":("充值","显示如何为此服务器添加点数。"),"ru":("пополнить","Показать, как добавить кредиты на сервер."),"hi":("रीचार्ज","इस सर्वर में क्रेडिट जोड़ने का तरीका दिखाएँ।"),"id":("isiulang","Tampilkan cara menambah kredit ke server ini.")},
+    "balance":{"es":("saldo","Muestra los créditos restantes del servidor."),"pt-BR":("saldo","Mostra os créditos restantes do servidor."),"fr":("solde","Affiche les crédits restants du serveur."),"de":("guthaben","Zeigt die verbleibenden Credits des Servers."),"ja":("残高","サーバーの残りクレジットを表示します。"),"ko":("잔액","서버의 남은 크레딧을 표시합니다."),"zh-CN":("余额","显示服务器剩余点数。"),"ru":("баланс","Показать оставшиеся кредиты сервера."),"hi":("शेष","सर्वर के शेष क्रेडिट दिखाएँ।"),"id":("saldo","Tampilkan sisa kredit server.")},
+    "usage":{"es":("uso","Muestra el uso de Voicely Translate del servidor."),"pt-BR":("uso","Mostra o uso do Voicely Translate no servidor."),"fr":("utilisation","Affiche l'utilisation de Voicely Translate du serveur."),"de":("nutzung","Zeigt die Voicely-Translate-Nutzung des Servers."),"ja":("使用量","サーバーのVoicely Translate使用量を表示します。"),"ko":("사용량","서버의 Voicely Translate 사용량을 표시합니다."),"zh-CN":("用量","显示服务器的 Voicely Translate 使用量。"),"ru":("расход","Показать использование Voicely Translate на сервере."),"hi":("उपयोग","सर्वर का Voicely Translate उपयोग दिखाएँ।"),"id":("penggunaan","Tampilkan penggunaan Voicely Translate server.")},
+    "timeout":{"es":("espera","Configura cuánto espera el bot antes de salir de un canal vacío."),"pt-BR":("espera","Define quanto o bot espera antes de sair de um canal vazio."),"fr":("délai","Définit le délai avant de quitter un salon vocal vide."),"de":("wartezeit","Legt fest, wie lange der Bot in einem leeren Kanal wartet."),"ja":("待機時間","空のボイスチャンネルから退出するまでの秒数を設定します。"),"ko":("대기시간","빈 음성 채널에서 나가기 전 대기 시간을 설정합니다."),"zh-CN":("超时","设置机器人离开空语音频道前的等待时间。"),"ru":("таймаут","Задать ожидание перед выходом из пустого канала."),"hi":("समयसीमा","खाली वॉइस चैनल छोड़ने से पहले प्रतीक्षा समय सेट करें।"),"id":("bataswaktu","Atur waktu tunggu sebelum bot keluar dari kanal kosong.")},
+    "leave":{"es":("salir","Detén la traducción y sal del canal de voz."),"pt-BR":("sair","Pare de traduzir e saia do canal de voz."),"fr":("quitter","Arrêtez la traduction et quittez le salon vocal."),"de":("verlassen","Beendet die Übersetzung und verlässt den Sprachkanal."),"ja":("退出","翻訳を停止してボイスチャンネルから退出します。"),"ko":("나가기","번역을 중지하고 음성 채널에서 나갑니다."),"zh-CN":("离开","停止翻译并离开语音频道。"),"ru":("выйти","Остановить перевод и выйти из голосового канала."),"hi":("छोड़ें","अनुवाद रोकें और वॉइस चैनल छोड़ें।"),"id":("keluar","Hentikan penerjemahan dan keluar dari kanal suara.")},
 }
 
 def apply_command_localizations(tree: app_commands.CommandTree) -> None:
     locale_map = {
-        "es": discord.Locale.spain_spanish,
-        "pt-BR": discord.Locale.brazil_portuguese,
-        "fr": discord.Locale.french,
-        "de": discord.Locale.german,
-        "ja": discord.Locale.japanese,
-        "ko": discord.Locale.korean,
-        "zh-CN": discord.Locale.chinese,
-        "ru": discord.Locale.russian,
-        "hi": discord.Locale.hindi,
-        "id": discord.Locale.indonesian,
+        "es": discord.Locale.spain_spanish, "pt-BR": discord.Locale.brazil_portuguese,
+        "fr": discord.Locale.french, "de": discord.Locale.german,
+        "ja": discord.Locale.japanese, "ko": discord.Locale.korean,
+        "zh-CN": discord.Locale.chinese, "ru": discord.Locale.russian,
+        "hi": discord.Locale.hindi, "id": discord.Locale.indonesian,
     }
-
     for command in tree.get_commands():
-        localizations = COMMAND_LOCALIZATIONS.get(command.name)
-        if not localizations:
-            continue
-
-        command.name_localizations = {
-            locale_map[locale]: value[0]
-            for locale, value in localizations.items()
-            if locale in locale_map
-        }
-        command.description_localizations = {
-            locale_map[locale]: value[1]
-            for locale, value in localizations.items()
-            if locale in locale_map
-        }
+        data = COMMAND_LOCALIZATIONS.get(command.name)
+        if data:
+            command.name_localizations = {locale_map[k]: v[0] for k, v in data.items() if k in locale_map}
+            command.description_localizations = {locale_map[k]: v[1] for k, v in data.items() if k in locale_map}
 
 # ============================================================
 # Discord bot
@@ -2500,6 +2260,32 @@ async def on_ready() -> None:
     print("------")
 
 
+
+def localized_balance(interaction, available, trial, paid) -> str:
+    labels = {
+        "en":("Available","Free trial","Purchased","credits"),"es":("Disponibles","Prueba gratuita","Comprados","créditos"),
+        "pt":("Disponíveis","Teste grátis","Comprados","créditos"),"fr":("Disponibles","Essai gratuit","Achetés","crédits"),
+        "de":("Verfügbar","Kostenlose Test-Credits","Gekauft","Credits"),"ja":("利用可能","無料トライアル","購入済み","クレジット"),
+        "ko":("사용 가능","무료 체험","구매","크레딧"),"zh":("可用","免费试用","已购买","点数"),
+        "ru":("Доступно","Пробные","Куплено","кредитов"),"ar":("المتاح","التجريبي المجاني","المشترى","رصيد"),
+        "hi":("उपलब्ध","मुफ्त ट्रायल","खरीदे गए","क्रेडिट"),"id":("Tersedia","Uji coba gratis","Dibeli","kredit"),
+    }
+    l = labels[ui_language_from_locale(interaction.locale)]
+    return f"**{l[0]}:** {format_credits(available)} {l[3]}\\n**{l[1]}:** {format_credits(trial)} {l[3]}\\n**{l[2]}:** {format_credits(paid)} {l[3]}\\n*(100 {l[3]} = $1.00 USD)*"
+
+def localized_usage(interaction, state) -> str:
+    labels = {
+        "en":("Total API usage","Transcription","Translation","Total purchased","credits"),"es":("Uso total de API","Transcripción","Traducción","Total comprado","créditos"),
+        "pt":("Uso total da API","Transcrição","Tradução","Total comprado","créditos"),"fr":("Utilisation totale de l'API","Transcription","Traduction","Total acheté","crédits"),
+        "de":("Gesamte API-Nutzung","Transkription","Übersetzung","Insgesamt gekauft","Credits"),"ja":("API総使用量","文字起こし","翻訳","購入総量","クレジット"),
+        "ko":("전체 API 사용량","받아쓰기","번역","총 구매","크레딧"),"zh":("API 总用量","转录","翻译","购买总量","点数"),
+        "ru":("Общее использование API","Транскрипция","Перевод","Всего куплено","кредитов"),"ar":("إجمالي استخدام API","النسخ","الترجمة","إجمالي المشتريات","رصيد"),
+        "hi":("कुल API उपयोग","ट्रांसक्रिप्शन","अनुवाद","कुल खरीदे गए","क्रेडिट"),"id":("Total penggunaan API","Transkripsi","Terjemahan","Total dibeli","kredit"),
+    }
+    l = labels[ui_language_from_locale(interaction.locale)]
+    vals = [int(state["total_used_microusd"]), int(state["transcription_used_microusd"]), int(state["translation_used_microusd"]), int(state["total_purchased_microusd"])]
+    return "\\n".join([f"**{l[i]}:** {format_credits(vals[i])} {l[4]}" for i in range(4)]) + f"\\n*(100 {l[4]} = $1.00 USD)*"
+
 class TranslationCommands(commands.Cog):
     def __init__(self, bot_instance: commands.Bot):
         self.bot = bot_instance
@@ -2518,7 +2304,7 @@ class TranslationCommands(commands.Cog):
     ) -> None:
         if interaction.guild is None or interaction.guild_id is None:
             await interaction.response.send_message(
-                "This command can only be used in a server.",
+                tr(interaction, "server_only"),
                 ephemeral=True,
             )
             return
@@ -2527,7 +2313,7 @@ class TranslationCommands(commands.Cog):
 
         if not isinstance(member, discord.Member):
             await interaction.response.send_message(
-                "I couldn't determine your voice channel.",
+                tr(interaction, "unknown_voice"),
                 ephemeral=True,
             )
             return
@@ -2576,10 +2362,7 @@ class TranslationCommands(commands.Cog):
 
         if existing is not None and not existing.closed:
             await interaction.response.send_message(
-                (
-                    f"I'm already translating **{existing.voice_channel.name}**. "
-                    "Use `/add`, `/remove`, `/active`, `/languages`, or `/leave`."
-                ),
+                tr(interaction, "already_translating", channel=existing.voice_channel.name),
                 ephemeral=True,
             )
             return
@@ -2617,20 +2400,12 @@ class TranslationCommands(commands.Cog):
 
             languages_text = ", ".join(requested_languages)
 
-            join_message = (
-                f"Joined **{voice_channel.name}**.\n"
-                f"Translating into: **{languages_text}**\n\n"
-                "Transcriptions and translations will be posted in this "
-                "voice channel's side chat."
-            )
+            join_message = tr(interaction, "join", channel=voice_channel.name, languages=languages_text)
 
             voicely_text_bot_id = 1290741552158609419
 
             if interaction.guild.get_member(voicely_text_bot_id) is None:
-                join_message += (
-                    "\n\nTo read translations out loud, use "
-                    "[**Voicely Text**](https://discord.com/application-directory/1290741552158609419)."
-                )
+                join_message += "\n\n" + tr(interaction, "voicely_text")
 
             await interaction.followup.send(
                 join_message,
@@ -2645,7 +2420,7 @@ class TranslationCommands(commands.Cog):
             )
 
             await interaction.followup.send(
-                f"I couldn't join that voice channel: `{error}`",
+                tr(interaction, "join_failed", error=error),
                 ephemeral=True,
             )
 
@@ -2685,7 +2460,7 @@ class TranslationCommands(commands.Cog):
             return
 
         await interaction.response.send_message(
-            f"Added: **{', '.join(added)}**",
+            tr(interaction, "added", languages=", ".join(added)),
             ephemeral=False,
         )
 
@@ -2719,19 +2494,19 @@ class TranslationCommands(commands.Cog):
 
         if not removed:
             await interaction.response.send_message(
-                "None of those languages are currently enabled.",
+                tr(interaction, "none_requested_enabled"),
                 ephemeral=True,
             )
             return
 
         if session.languages:
             remaining = ", ".join(session.languages)
-            extra = f"\nStill enabled: **{remaining}**"
+            extra = "\n" + tr(interaction, "still_enabled", languages=remaining)
         else:
-            extra = "\nNo translation languages are currently enabled."
+            extra = "\n" + tr(interaction, "none_enabled")
 
         await interaction.response.send_message(
-            f"Removed: **{', '.join(removed)}**{extra}",
+            tr(interaction, "removed", languages=", ".join(removed)) + extra,
             ephemeral=False,
         )
 
@@ -2751,10 +2526,7 @@ class TranslationCommands(commands.Cog):
         if not session.languages:
             text = tr(interaction, "none_enabled")
         else:
-            text = (
-                f"Currently translating into: "
-                f"**{', '.join(session.languages)}**"
-            )
+            text = tr(interaction, "active", languages=", ".join(session.languages))
 
         await interaction.response.send_message(
             text,
@@ -2816,7 +2588,7 @@ class TranslationCommands(commands.Cog):
     ) -> None:
         if interaction.guild_id is None:
             await interaction.response.send_message(
-                "This command can only be used in a server.",
+                tr(interaction, "server_only"),
                 ephemeral=True,
             )
             return
@@ -2886,7 +2658,7 @@ class TranslationCommands(commands.Cog):
     ) -> None:
         if interaction.guild_id is None:
             await interaction.response.send_message(
-                "This command can only be used in a server.",
+                tr(interaction, "server_only"),
                 ephemeral=True,
             )
             return
@@ -2905,12 +2677,7 @@ class TranslationCommands(commands.Cog):
         available = max(0, trial + paid)
 
         await interaction.response.send_message(
-            (
-                f"**Available:** {format_credits(available)} credits\n"
-                f"**Free trial:** {format_credits(trial)} credits\n"
-                f"**Purchased:** {format_credits(paid)} credits\n"
-                f"*(100 credits = $1.00 USD)*"
-            ),
+            localized_balance(interaction, available, trial, paid),
             ephemeral=True,
         )
 
@@ -2924,7 +2691,7 @@ class TranslationCommands(commands.Cog):
     ) -> None:
         if interaction.guild_id is None:
             await interaction.response.send_message(
-                "This command can only be used in a server.",
+                tr(interaction, "server_only"),
                 ephemeral=True,
             )
             return
@@ -2940,17 +2707,7 @@ class TranslationCommands(commands.Cog):
         state = get_credit_state(interaction.guild_id)
 
         await interaction.response.send_message(
-            (
-                f"**Total API usage:** "
-                f"{format_credits(int(state['total_used_microusd']))} credits\n"
-                f"**Transcription:** "
-                f"{format_credits(int(state['transcription_used_microusd']))} credits\n"
-                f"**Translation:** "
-                f"{format_credits(int(state['translation_used_microusd']))} credits\n"
-                f"**Total purchased:** "
-                f"{format_credits(int(state['total_purchased_microusd']))} credits\n"
-                f"*(100 credits = $1.00 USD)*"
-            ),
+            localized_usage(interaction, state),
             ephemeral=True,
         )
 
@@ -2969,7 +2726,7 @@ class TranslationCommands(commands.Cog):
     ) -> None:
         if interaction.guild_id is None:
             await interaction.response.send_message(
-                "This command can only be used in a server.",
+                tr(interaction, "server_only"),
                 ephemeral=True,
             )
             return
@@ -2986,7 +2743,7 @@ class TranslationCommands(commands.Cog):
             session.update_idle_timeout()
 
         await interaction.response.send_message(
-            f"Empty-channel timeout set to **{seconds} seconds**.",
+            tr(interaction, "timeout_set", seconds=seconds),
             ephemeral=True,
         )
 

@@ -45,9 +45,11 @@ Você já deve estar dentro do canal de voz no qual deseja que o Voicely Transla
 
 Use:
 
-`/join languages:<tags de idioma>`
+`/join`
 
-A opção `languages` determina para quais idiomas a conversa deve ser traduzida.
+A opção `languages` é opcional. Se você especificar idiomas, esses idiomas serão usados para a sessão de tradução:
+
+`/join languages:<tags de idioma>`
 
 Separe vários idiomas com vírgulas.
 
@@ -61,7 +63,35 @@ Você pode ativar quantos idiomas precisar:
 
 `/join languages:en,ja,es,fr,de,ko`
 
+Se você usar `/join` sem especificar nenhum idioma, o Voicely Translate usará os idiomas de tradução padrão do servidor.
+
+Se o servidor não tiver nenhum idioma padrão configurado, o bot pedirá que você especifique os idiomas ou peça a um administrador do servidor para configurar os idiomas padrão.
+
 Depois de conectado, o Voicely Translate publicará suas transcrições e traduções no **chat lateral pertencente àquele canal de voz**.
+
+## Idiomas de tradução padrão
+
+Os administradores do servidor podem definir os idiomas que o Voicely Translate usa quando alguém executa `/join` sem especificar a opção `languages`.
+
+Use:
+
+`/defaultlanguages languages:<tags de idioma>`
+
+Por exemplo:
+
+`/defaultlanguages languages:en,ja`
+
+define inglês e japonês como os idiomas de tradução padrão do servidor.
+
+Separe vários idiomas com vírgulas:
+
+`/defaultlanguages languages:en,ja,es,fr`
+
+Esses padrões são armazenados para o servidor do Discord e permanecem em vigor até que um administrador do servidor os altere.
+
+Especificar idiomas diretamente com `/join` substitui os padrões do servidor para aquela sessão de tradução. Isso não altera os padrões salvos.
+
+Este comando requer a permissão de **Administrador**.
 
 ## Tags de idioma
 

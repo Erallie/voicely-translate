@@ -50,9 +50,11 @@ Debes estar ya dentro del canal de voz al que quieres que se una Voicely Transla
 
 Usa:
 
-`/join languages:<etiquetas de idioma>`
+`/join`
 
-La opción `languages` determina a qué idiomas debe traducirse la conversación.
+La opción `languages` es opcional. Si especificas idiomas, esos idiomas se utilizarán para la sesión de traducción:
+
+`/join languages:<etiquetas de idioma>`
 
 Separa varios idiomas con comas.
 
@@ -66,7 +68,35 @@ Puedes habilitar tantos idiomas como necesites:
 
 `/join languages:en,ja,es,fr,de,ko`
 
-Una vez conectado, Voicely Translate publicará sus transcripciones y traducciones en **el chat lateral perteneciente a ese canal de voz**.
+Si usas `/join` sin especificar ningún idioma, Voicely Translate utilizará los idiomas de traducción predeterminados del servidor.
+
+Si el servidor no tiene ningún idioma predeterminado configurado, el bot te pedirá que especifiques los idiomas o que solicites a un administrador del servidor que configure los idiomas predeterminados.
+
+Una vez conectado, Voicely Translate publicará sus transcripciones y traducciones en el **chat lateral correspondiente a ese canal de voz**.
+
+## Idiomas de traducción predeterminados
+
+Los administradores del servidor pueden establecer los idiomas que Voicely Translate utiliza cuando alguien ejecuta `/join` sin especificar la opción `languages`.
+
+Usa:
+
+`/defaultlanguages languages:<etiquetas de idioma>`
+
+Por ejemplo:
+
+`/defaultlanguages languages:en,ja`
+
+establece inglés y japonés como los idiomas de traducción predeterminados del servidor.
+
+Separa varios idiomas con comas:
+
+`/defaultlanguages languages:en,ja,es,fr`
+
+Estos idiomas predeterminados se guardan para el servidor de Discord y permanecen vigentes hasta que un administrador del servidor los cambie.
+
+Especificar idiomas directamente con `/join` reemplaza los idiomas predeterminados del servidor para esa sesión de traducción. No cambia los idiomas predeterminados guardados.
+
+Este comando requiere el permiso de **Administrador**.
 
 ## Etiquetas de idioma
 

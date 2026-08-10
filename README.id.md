@@ -41,13 +41,15 @@ Untuk mulai menerjemahkan, masuk ke saluran suara Discord biasa lalu gunakan:
 
 Anda harus sudah berada di saluran suara yang ingin dimasuki Voicely Translate.
 
-## Memulai sesi terjemahan
+## Memulai Sesi Terjemahan
 
 Gunakan:
 
-`/join languages:<tag bahasa>`
+`/join`
 
-Opsi `languages` menentukan bahasa tujuan terjemahan percakapan.
+Opsi `languages` bersifat opsional. Jika Anda menentukan bahasa, bahasa tersebut akan digunakan untuk sesi terjemahan:
+
+`/join languages:<tag bahasa>`
 
 Pisahkan beberapa bahasa dengan koma.
 
@@ -61,7 +63,35 @@ Anda dapat mengaktifkan sebanyak mungkin bahasa yang diperlukan:
 
 `/join languages:en,ja,es,fr,de,ko`
 
-Setelah terhubung, Voicely Translate akan memposting transkripsi dan terjemahannya di **chat samping yang dimiliki oleh saluran suara tersebut**.
+Jika Anda menggunakan `/join` tanpa menentukan bahasa apa pun, Voicely Translate akan menggunakan bahasa terjemahan default server.
+
+Jika server belum memiliki bahasa default yang dikonfigurasi, bot akan meminta Anda menentukan bahasa atau meminta administrator server untuk mengatur bahasa default.
+
+Setelah terhubung, Voicely Translate akan memposting transkripsi dan terjemahannya di **chat samping milik saluran suara tersebut**.
+
+## Bahasa Terjemahan Default
+
+Administrator server dapat mengatur bahasa yang digunakan Voicely Translate ketika seseorang menjalankan `/join` tanpa menentukan opsi `languages`.
+
+Gunakan:
+
+`/defaultlanguages languages:<tag bahasa>`
+
+Contoh:
+
+`/defaultlanguages languages:en,ja`
+
+menetapkan bahasa Inggris dan Jepang sebagai bahasa terjemahan default server.
+
+Pisahkan beberapa bahasa dengan koma:
+
+`/defaultlanguages languages:en,ja,es,fr`
+
+Pengaturan default ini disimpan untuk server Discord dan tetap berlaku sampai administrator server mengubahnya.
+
+Menentukan bahasa secara langsung dengan `/join` akan menggantikan bahasa default server untuk sesi terjemahan tersebut. Hal ini tidak mengubah pengaturan default yang tersimpan.
+
+Perintah ini memerlukan izin **Administrator**.
 
 ## Tag bahasa
 

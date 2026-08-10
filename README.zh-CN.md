@@ -45,9 +45,11 @@ Voicely Translate 是一个 Discord 机器人，可自动转录并翻译语音�
 
 使用：
 
-`/join languages:<语言标签>`
+`/join`
 
-`languages` 选项决定将对话翻译成哪些语言。
+`languages` 选项是可选的。如果指定了语言，翻译会话将使用这些语言：
+
+`/join languages:<语言标签>`
 
 使用逗号分隔多种语言。
 
@@ -55,13 +57,41 @@ Voicely Translate 是一个 Discord 机器人，可自动转录并翻译语音�
 
 `/join languages:en,ja`
 
-这将启动一个启用了英语和日语的翻译会话。
+这将启动一个启用英语和日语的翻译会话。
 
 你可以根据需要启用任意数量的语言：
 
 `/join languages:en,ja,es,fr,de,ko`
 
-连接后，Voicely Translate 会将转录和翻译发布到**属于该语音频道的侧边聊天**中。
+如果使用 `/join` 时没有指定任何语言，Voicely Translate 将使用服务器的默认翻译语言。
+
+如果服务器尚未配置任何默认语言，机器人会要求你指定语言，或让服务器管理员配置默认语言。
+
+连接后，Voicely Translate 会将转录和翻译发布到**该语音频道的侧边聊天中**。
+
+## 默认翻译语言
+
+服务器管理员可以设置当用户运行 `/join` 且未指定 `languages` 选项时 Voicely Translate 使用的语言。
+
+使用：
+
+`/defaultlanguages languages:<语言标签>`
+
+例如：
+
+`/defaultlanguages languages:en,ja`
+
+将英语和日语设置为服务器的默认翻译语言。
+
+使用逗号分隔多种语言：
+
+`/defaultlanguages languages:en,ja,es,fr`
+
+这些默认设置会保存到该 Discord 服务器，并一直有效，直到服务器管理员进行更改。
+
+在 `/join` 中直接指定语言会覆盖该翻译会话的服务器默认语言，但不会更改已保存的默认设置。
+
+此命令需要**管理员**权限。
 
 ## 语言标签
 

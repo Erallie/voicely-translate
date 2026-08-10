@@ -45,9 +45,11 @@ Du musst dich bereits in dem Sprachkanal befinden, dem Voicely Translate beitret
 
 Verwende:
 
-`/join languages:<Sprachtags>`
+`/join`
 
-Die Option `languages` bestimmt, in welche Sprachen das Gespräch übersetzt werden soll.
+Die Option `languages` ist optional. Wenn du Sprachen angibst, werden diese für die Übersetzungssitzung verwendet:
+
+`/join languages:<Sprach-Tags>`
 
 Trenne mehrere Sprachen durch Kommas.
 
@@ -61,7 +63,35 @@ Du kannst so viele Sprachen aktivieren, wie du benötigst:
 
 `/join languages:en,ja,es,fr,de,ko`
 
-Nach der Verbindung veröffentlicht Voicely Translate seine Transkriptionen und Übersetzungen im **Seitenchat dieses Sprachkanals**.
+Wenn du `/join` verwendest, ohne Sprachen anzugeben, verwendet Voicely Translate die Standardübersetzungssprachen des Servers.
+
+Wenn für den Server keine Standardsprachen konfiguriert sind, fordert der Bot dich auf, Sprachen anzugeben oder einen Serveradministrator zu bitten, die Standardsprachen festzulegen.
+
+Nach der Verbindung veröffentlicht Voicely Translate seine Transkriptionen und Übersetzungen im **Seitenchat des entsprechenden Sprachkanals**.
+
+## Standardübersetzungssprachen
+
+Serveradministratoren können festlegen, welche Sprachen Voicely Translate verwendet, wenn jemand `/join` ausführt, ohne die Option `languages` anzugeben.
+
+Verwende:
+
+`/defaultlanguages languages:<Sprach-Tags>`
+
+Zum Beispiel:
+
+`/defaultlanguages languages:en,ja`
+
+legt Englisch und Japanisch als Standardübersetzungssprachen des Servers fest.
+
+Trenne mehrere Sprachen durch Kommas:
+
+`/defaultlanguages languages:en,ja,es,fr`
+
+Diese Standardeinstellungen werden für den Discord-Server gespeichert und bleiben bestehen, bis ein Serveradministrator sie ändert.
+
+Wenn du Sprachen direkt mit `/join` angibst, werden die Serverstandards für diese Übersetzungssitzung überschrieben. Die gespeicherten Standardeinstellungen werden dadurch nicht geändert.
+
+Dieser Befehl erfordert die Berechtigung **Administrator**.
 
 ## Sprachtags
 

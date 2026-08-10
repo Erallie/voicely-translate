@@ -45,9 +45,11 @@ You must already be inside the voice channel that you want Voicely Translate to 
 
 Use:
 
-`/join languages:<language tags>`
+`/join`
 
-The `languages` option determines which languages the conversation should be translated into.
+The `languages` option is optional. If you specify languages, those languages will be used for the translation session:
+
+`/join languages:<language tags>`
 
 Separate multiple languages with commas.
 
@@ -61,7 +63,35 @@ You can enable as many languages as you need:
 
 `/join languages:en,ja,es,fr,de,ko`
 
+If you use `/join` without specifying any languages, Voicely Translate will use the server's default translation languages.
+
+If the server does not have any default languages configured, the bot will ask you to specify languages or ask a server administrator to configure the defaults.
+
 Once connected, Voicely Translate will post its transcriptions and translations in the **side chat belonging to that voice channel**.
+
+## Default Translation Languages
+
+Server administrators can set the languages that Voicely Translate uses when someone runs `/join` without specifying the `languages` option.
+
+Use:
+
+`/defaultlanguages languages:<language tags>`
+
+For example:
+
+`/defaultlanguages languages:en,ja`
+
+sets English and Japanese as the server's default translation languages.
+
+Separate multiple languages with commas:
+
+`/defaultlanguages languages:en,ja,es,fr`
+
+These defaults are stored for the Discord server and remain in effect until a server administrator changes them.
+
+Specifying languages directly with `/join` overrides the server defaults for that translation session. It does not change the saved defaults.
+
+This command requires the **Administrator** permission.
 
 ## Language Tags
 

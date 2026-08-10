@@ -50,9 +50,11 @@ Vous devez déjà vous trouver dans le salon vocal que vous souhaitez faire rejo
 
 Utilisez :
 
-`/join languages:<balises de langue>`
+`/join`
 
-L'option `languages` détermine les langues vers lesquelles la conversation doit être traduite.
+L'option `languages` est facultative. Si vous spécifiez des langues, celles-ci seront utilisées pour la session de traduction :
+
+`/join languages:<balises de langue>`
 
 Séparez plusieurs langues par des virgules.
 
@@ -66,7 +68,35 @@ Vous pouvez activer autant de langues que nécessaire :
 
 `/join languages:en,ja,es,fr,de,ko`
 
-Une fois connecté, Voicely Translate publiera ses transcriptions et traductions dans **le chat latéral appartenant à ce salon vocal**.
+Si vous utilisez `/join` sans spécifier de langue, Voicely Translate utilisera les langues de traduction par défaut du serveur.
+
+Si aucune langue par défaut n'est configurée pour le serveur, le bot vous demandera de spécifier des langues ou de demander à un administrateur du serveur de configurer les langues par défaut.
+
+Une fois connecté, Voicely Translate publiera ses transcriptions et traductions dans le **chat latéral associé à ce salon vocal**.
+
+## Langues de traduction par défaut
+
+Les administrateurs du serveur peuvent définir les langues utilisées par Voicely Translate lorsqu'une personne exécute `/join` sans spécifier l'option `languages`.
+
+Utilisez :
+
+`/defaultlanguages languages:<balises de langue>`
+
+Par exemple :
+
+`/defaultlanguages languages:en,ja`
+
+définit l'anglais et le japonais comme langues de traduction par défaut du serveur.
+
+Séparez plusieurs langues par des virgules :
+
+`/defaultlanguages languages:en,ja,es,fr`
+
+Ces paramètres par défaut sont enregistrés pour le serveur Discord et restent en vigueur jusqu'à ce qu'un administrateur du serveur les modifie.
+
+Spécifier directement des langues avec `/join` remplace les langues par défaut du serveur pour cette session de traduction. Cela ne modifie pas les langues par défaut enregistrées.
+
+Cette commande nécessite l'autorisation **Administrateur**.
 
 ## Balises de langue
 

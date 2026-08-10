@@ -2150,6 +2150,20 @@ UI = {
     "left": {"en":tr(interaction, "left"),"es":"Se detuvo la traducción y salí del canal de voz.","pt":"A tradução foi interrompida e saí do canal de voz.","fr":"La traduction a été arrêtée et j'ai quitté le salon vocal.","de":"Die Übersetzung wurde beendet und ich habe den Sprachkanal verlassen.","ja":"翻訳を停止し、ボイスチャンネルから退出しました。","ko":"번역을 중지하고 음성 채널에서 나갔습니다.","zh":"已停止翻译并离开语音频道。","ru":"Перевод остановлен, я вышел из голосового канала.","ar":"تم إيقاف الترجمة ومغادرة القناة الصوتية.","hi":"अनुवाद बंद कर दिया गया और वॉइस चैनल छोड़ दिया गया।","id":"Penerjemahan dihentikan dan saya keluar dari kanal suara."},
     "timeout_set": {"en":"Empty-channel timeout set to **{seconds} seconds**.","es":"El tiempo de espera del canal vacío se estableció en **{seconds} segundos**.","pt":"O tempo limite do canal vazio foi definido como **{seconds} segundos**.","fr":"Le délai du salon vide est défini sur **{seconds} secondes**.","de":"Die Wartezeit für einen leeren Kanal wurde auf **{seconds} Sekunden** gesetzt.","ja":"空チャンネルのタイムアウトを **{seconds}秒** に設定しました。","ko":"빈 채널 대기 시간을 **{seconds}초**로 설정했습니다.","zh":"空频道超时已设为 **{seconds} 秒**。","ru":"Таймаут пустого канала установлен на **{seconds} секунд**.","ar":"تم ضبط مهلة القناة الفارغة على **{seconds} ثانية**.","hi":"खाली चैनल की समयसीमा **{seconds} सेकंड** पर सेट की गई।","id":"Batas waktu kanal kosong diatur ke **{seconds} detik**."},
     "credit_exhausted": {"en":"### Voicely Translate credit exhausted\nThis server has used all of its available translation credit, so I'm leaving the voice channel.\nAn administrator can use `/topup` to add more credit through Ko-fi.","es":"### Créditos de Voicely Translate agotados\nEste servidor ha usado todos sus créditos de traducción disponibles, así que saldré del canal de voz.\nUn administrador puede usar `/topup` para añadir más créditos mediante Ko-fi.","pt":"### Créditos do Voicely Translate esgotados\nEste servidor usou todos os créditos de tradução disponíveis, então vou sair do canal de voz.\nUm administrador pode usar `/topup` para adicionar créditos pelo Ko-fi.","fr":"### Crédits Voicely Translate épuisés\nCe serveur a utilisé tous ses crédits de traduction disponibles, je quitte donc le salon vocal.\nUn administrateur peut utiliser `/topup` pour ajouter des crédits via Ko-fi.","de":"### Voicely-Translate-Credits aufgebraucht\nDieser Server hat sein gesamtes Übersetzungsguthaben verbraucht, daher verlasse ich den Sprachkanal.\nEin Administrator kann mit `/topup` über Ko-fi weitere Credits hinzufügen.","ja":"### Voicely Translateクレジットを使い切りました\nこのサーバーの利用可能な翻訳クレジットがなくなったため、ボイスチャンネルから退出します。\n管理者は `/topup` でKo-fiからクレジットを追加できます。","ko":"### Voicely Translate 크레딧 소진\n이 서버의 사용 가능한 번역 크레딧을 모두 사용했으므로 음성 채널에서 나갑니다.\n관리자는 `/topup`을 사용해 Ko-fi에서 크레딧을 추가할 수 있습니다.","zh":"### Voicely Translate 点数已用尽\n此服务器已用完所有可用翻译点数，因此我将离开语音频道。\n管理员可以使用 `/topup` 通过 Ko-fi 添加更多点数。","ru":"### Кредиты Voicely Translate закончились\nСервер израсходовал все доступные кредиты перевода, поэтому я выхожу из голосового канала.\nАдминистратор может использовать `/topup`, чтобы добавить кредиты через Ko-fi.","ar":"### نفد رصيد Voicely Translate\nاستخدم هذا الخادم كل رصيد الترجمة المتاح، لذلك سأغادر القناة الصوتية.\nيمكن للمسؤول استخدام `/topup` لإضافة رصيد عبر Ko-fi.","hi":"### Voicely Translate क्रेडिट समाप्त\nइस सर्वर ने उपलब्ध सभी अनुवाद क्रेडिट इस्तेमाल कर लिए हैं, इसलिए मैं वॉइस चैनल छोड़ रहा हूँ।\nएडमिन `/topup` से Ko-fi के माध्यम से और क्रेडिट जोड़ सकता है।","id":"### Kredit Voicely Translate habis\nServer ini telah menggunakan seluruh kredit terjemahan yang tersedia, jadi saya akan keluar dari kanal suara.\nAdministrator dapat menggunakan `/topup` untuk menambah kredit melalui Ko-fi."},
+    "topup_separate_order": {
+        "en":"**Important:** Please purchase Voicely Translate Credits separately from other items in the same order.",
+        "es":"**Importante:** Compra los créditos de Voicely Translate por separado de otros artículos en el mismo pedido.",
+        "pt":"**Importante:** Compre os créditos do Voicely Translate separadamente de outros itens no mesmo pedido.",
+        "fr":"**Important :** Veuillez acheter les crédits Voicely Translate séparément des autres articles de la même commande.",
+        "de":"**Wichtig:** Bitte kaufe Voicely Translate Credits getrennt von anderen Artikeln in derselben Bestellung.",
+        "ja":"**重要:** Voicely Translate Creditsは、同じ注文内の他の商品とは別に購入してください。",
+        "ko":"**중요:** Voicely Translate Credits는 같은 주문의 다른 상품과 별도로 구매해 주세요.",
+        "zh":"**重要：** 请将 Voicely Translate Credits 与同一订单中的其他商品分开购买。",
+        "ru":"**Важно:** Покупайте Voicely Translate Credits отдельно от других товаров в том же заказе.",
+        "ar":"**مهم:** يرجى شراء أرصدة Voicely Translate بشكل منفصل عن أي عناصر أخرى في الطلب نفسه.",
+        "hi":"**महत्वपूर्ण:** कृपया Voicely Translate Credits को उसी ऑर्डर में अन्य वस्तुओं से अलग खरीदें।",
+        "id":"**Penting:** Harap beli Voicely Translate Credits secara terpisah dari item lain dalam pesanan yang sama.",
+    },
 }
 
 def ui_language_from_locale(locale) -> str:
@@ -2629,6 +2643,8 @@ class TranslationCommands(commands.Cog):
             "",
             "Include that exact code in the message with your Ko-fi payment.",
             "Every **$1.00 USD adds 100 Voicely Credits** to this server.",
+            "",
+            tr(interaction, "topup_separate_order"),
         ]
 
         if KOFI_URL:

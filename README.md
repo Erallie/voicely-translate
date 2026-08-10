@@ -1,7 +1,7 @@
 # Voicely Translate
 
 [![Invite Me](https://img.shields.io/badge/Invite%20Me-7965c7?style=for-the-badge)](https://discord.com/oauth2/authorize?client_id=1535789654974930964)
-[![App Directory](https://img.shields.io/badge/App%20Directory-615ccc?style=for-the-badge)](https://discord.com/application-directory/1290741552158609419)
+[![App Directory](https://img.shields.io/badge/App%20Directory-615ccc?style=for-the-badge)](https://discord.com/application-directory/1535789654974930964)
 [![Privacy Policy](https://img.shields.io/badge/Privacy%20Policy-cc7a7c?style=for-the-badge)](https://github.com/Erallie/voicely-translate/blob/main/legal/privacy-policy.md)
 <br>
 [![Our Discord](https://img.shields.io/discord/1102582171207741480?style=for-the-badge&logo=discord&logoColor=ffffff&label=Our%20Discord&color=5865F2)](https://discord.gozarproductions.com)

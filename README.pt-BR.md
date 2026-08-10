@@ -10,120 +10,296 @@
 
 ---
 
-[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [Русский](README.ru.md) | [العربية](README.ar.md) | [हिन्दी](README.hi.md) | [Bahasa Indonesia](README.id.md)
+[English](README.md) | [Español](README.es.md) | Português | [Français](README.fr.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [Русский](README.ru.md) | [العربية](README.ar.md) | [हिन्दी](README.hi.md) | [Bahasa Indonesia](README.id.md)
 
-Voicely Translate é um bot do Discord que transcreve e traduz automaticamente conversas em canais de voz.
+Voicely Translate é um bot do Discord que transcreve e traduz automaticamente conversas que acontecem em canais de voz.
 
-Quando está ativo, ele ouve cada pessoa separadamente, transcreve o que foi dito e publica a transcrição original junto com as traduções no chat lateral do canal de voz. Vários idiomas podem ficar ativos ao mesmo tempo e podem ser adicionados ou removidos durante a sessão.
+Quando o bot está ativo em um canal de voz, ele escuta cada pessoa individualmente, transcreve o que ela diz e publica a transcrição original junto com as traduções no chat lateral do canal de voz.
+
+Vários idiomas de tradução podem ser ativados ao mesmo tempo, e idiomas podem ser adicionados ou removidos enquanto o bot já está traduzindo.
 
 ## Recursos
 
-* Transcrição automática de fala em canais de voz do Discord.
-* Tradução para vários idiomas ao mesmo tempo.
-* Publicação das transcrições e traduções diretamente no chat lateral do canal de voz.
-* Suporte a várias pessoas falando, inclusive ao mesmo tempo.
-* Adição e remoção de idiomas sem reiniciar a sessão.
-* Uso de tags de idioma BCP 47, sem uma lista fixa de idiomas permitidos.
-* Saída automática de canais vazios após um tempo configurável.
-* Integração opcional com [**Voicely Text**](https://discord.com/application-directory/1290741552158609419) para ler traduções em voz alta.
+* Transcreve automaticamente a fala dos canais de voz do Discord.
+* Traduz conversas para vários idiomas ao mesmo tempo.
+* Publica transcrições e traduções diretamente no chat lateral do canal de voz.
+* Suporta várias pessoas falando, inclusive falas sobrepostas.
+* Permite adicionar ou remover idiomas de tradução sem reiniciar a sessão.
+* Usa tags de idioma BCP 47, permitindo solicitar idiomas além de uma lista interna fixa.
+* Sai automaticamente de um canal de voz vazio após um tempo limite configurável.
+* Pode ser usado opcionalmente com [**Voicely Text**](https://discord.com/application-directory/1290741552158609419) para ler mensagens traduzidas em voz alta.
 
-## Adicionando ao servidor
+## Adicionando o Voicely Translate ao seu servidor
 
-Adicione o bot usando [este link de convite](https://discord.com/oauth2/authorize?client_id=1535789654974930964). Depois, entre em um canal de voz normal e use `/join`. Você precisa estar no canal em que deseja que o bot entre.
+Adicione o Voicely Translate ao seu servidor do Discord usando [este link de convite](https://discord.com/oauth2/authorize?client_id=1535789654974930964).
 
-## Iniciando uma sessão
+Depois de instalado, seus comandos ficam disponíveis como comandos de barra do Discord.
 
-Use `/join languages:<tags de idioma>`. Separe vários idiomas por vírgulas, como `/join languages:en,ja` ou `/join languages:en,ja,es,fr,de,ko`.
+Para começar a traduzir, entre em um canal de voz normal do Discord e use:
 
-Depois de conectado, o bot publica tudo no **chat lateral daquele canal de voz**.
+`/join`
+
+Você já deve estar dentro do canal de voz no qual deseja que o Voicely Translate entre.
+
+## Iniciando uma sessão de tradução
+
+Use:
+
+`/join languages:<tags de idioma>`
+
+A opção `languages` determina para quais idiomas a conversa deve ser traduzida.
+
+Separe vários idiomas com vírgulas.
+
+Por exemplo:
+
+`/join languages:en,ja`
+
+Isso inicia uma sessão de tradução com inglês e japonês ativados.
+
+Você pode ativar quantos idiomas precisar:
+
+`/join languages:en,ja,es,fr,de,ko`
+
+Depois de conectado, o Voicely Translate publicará suas transcrições e traduções no **chat lateral pertencente àquele canal de voz**.
 
 ## Tags de idioma
 
-O bot usa tags, não nomes de idiomas. Exemplos: `en` — inglês, `ja` — japonês, `es` — espanhol, `fr` — francês, `de` — alemão, `ko` — coreano, `zh` — chinês e `haw` — havaiano.
+O Voicely Translate usa tags de idioma em vez dos nomes dos idiomas.
 
-Tags regionais ou de escrita, como `pt-BR` e `zh-TW`, também podem ser usadas. `/languages` mostra uma lista de referência. **O bot não está limitado a essa lista**; outras tags BCP 47 válidas também podem funcionar.
+Por exemplo:
 
-## Alterando idiomas
+* `en` — Inglês
+* `ja` — Japonês
+* `es` — Espanhol
+* `fr` — Francês
+* `de` — Alemão
+* `ko` — Coreano
+* `zh` — Chinês
+* `haw` — Havaiano
 
-* `/add languages:fr,ko` adiciona idiomas.
-* `/remove languages:en,fr` remove idiomas.
-* `/active` mostra os idiomas ativos.
-* `/leave` encerra a tradução e faz o bot sair.
+Tags BCP 47 regionais e específicas de escrita também podem ser usadas, como `pt-BR` ou `zh-TW`.
 
-## Tempo limite de canal vazio
+Use:
 
-Administradores podem usar `/timeout seconds:<segundos>`, por exemplo `/timeout seconds:60`. O padrão é **30 segundos**. O comando exige permissão de **Administrador**.
+`/languages`
 
-## Créditos Voicely
+para ver uma lista de referência de tags de idioma comuns.
 
-**100 Créditos Voicely = US$ 1,00.** Novos servidores recebem atualmente **50 créditos de teste gratuitos**.
+O bot **não está limitado aos idiomas mostrados por `/languages`**. Você também pode experimentar outras tags de idioma BCP 47 válidas.
 
-Os créditos são usados durante transcrição e tradução. O consumo depende da quantidade de fala e do número de idiomas solicitados. Mais idiomas podem aumentar o consumo.
+## Alterando idiomas durante a tradução
 
-* `/balance` mostra créditos disponíveis, teste gratuito e créditos comprados.
-* `/usage` mostra uso total da API, transcrição, tradução e total comprado.
-* Créditos e uso pertencem ao **servidor do Discord**, não a um usuário individual.
+Você não precisa fazer o bot sair e entrar novamente apenas para mudar os idiomas.
 
-### Adicionando créditos
+### Adicionar idiomas
 
-Administradores podem usar `/topup`. O bot fornece um código exclusivo do servidor e instruções para pagamento pelo Ko-fi. Inclua o código exato na mensagem do pagamento.
+Use:
 
-Cada **US$ 1,00 adiciona 100 Créditos Voicely**. Depois do pagamento, use `/balance` ou `/join` para que o bot verifique automaticamente o novo crédito.
+`/add languages:<tags de idioma>`
 
-## Como funciona
+Por exemplo:
 
-1. O bot recebe o áudio de cada pessoa.
-2. Transcreve no idioma realmente falado.
-3. Traduz para os idiomas ativos.
-4. Publica o original e as traduções no chat lateral do canal.
+`/add languages:fr,ko`
 
-Cada pessoa é processada separadamente, permitindo conversas com falas sobrepostas. Pequenas pausas indicam o fim de uma fala. Sons não verbais e hesitações isoladas podem ser ignorados.
+adiciona francês e coreano à sessão de tradução atual.
+
+### Remover idiomas
+
+Use:
+
+`/remove languages:<tags de idioma>`
+
+Por exemplo:
+
+`/remove languages:en,fr`
+
+remove inglês e francês da sessão de tradução atual.
+
+Remover um idioma afeta apenas traduções futuras. O bot pode continuar traduzindo para quaisquer idiomas que permaneçam ativados.
+
+### Ver idiomas ativos
+
+Use:
+
+`/active`
+
+para ver quais idiomas de tradução estão ativados no momento.
+
+## Parando a tradução
+
+Use:
+
+`/leave`
+
+para interromper a sessão de tradução atual e fazer o Voicely Translate sair do canal de voz.
+
+O bot também pode sair automaticamente quando não houver mais ninguém no canal de voz.
+
+## Tempo limite de canal de voz vazio
+
+Administradores do servidor podem controlar por quanto tempo o Voicely Translate espera em um canal de voz vazio antes de sair automaticamente.
+
+Use:
+
+`/timeout seconds:<segundos>`
+
+Por exemplo:
+
+`/timeout seconds:60`
+
+faz o bot esperar 60 segundos depois que o canal de voz fica vazio.
+
+O tempo limite padrão é de **30 segundos**.
+
+Este comando requer a permissão de **Administrador**.
+
+## Voicely Credits
+
+O Voicely Translate usa um sistema de créditos para pagar pelos serviços de transcrição e tradução necessários para processar conversas de voz.
+
+**100 Voicely Credits = $1.00 USD.**
+
+Novos servidores recebem atualmente **50 créditos de teste gratuitos**.
+
+Os créditos são consumidos à medida que a fala é transcrita e traduzida. A quantidade usada pode variar dependendo de quanto as pessoas falam e de quantas traduções são solicitadas.
+
+Ativar mais idiomas de tradução pode aumentar o uso, pois cada transcrição precisa ser traduzida para os idiomas solicitados.
+
+### Verificar seu saldo
+
+Use:
+
+`/balance`
+
+para ver:
+
+* Créditos disponíveis
+* Créditos de teste gratuitos restantes
+* Créditos comprados
+
+### Verificar o uso
+
+Use:
+
+`/usage`
+
+para ver o uso acumulado do servidor, incluindo:
+
+* Uso total da API
+* Uso de transcrição
+* Uso de tradução
+* Total de créditos comprados
+
+Os saldos de créditos e o uso pertencem ao **servidor do Discord**, não a um usuário individual do Discord.
+
+## Adicionando mais créditos
+
+Administradores do servidor podem usar:
+
+`/topup`
+
+O Voicely Translate fornecerá um código de recarga exclusivo para o servidor e instruções para comprar créditos adicionais pelo Ko-fi.
+
+Ao fazer o pagamento, inclua o código de recarga fornecido na mensagem de pagamento do Ko-fi.
+
+Cada **$1.00 USD adiciona 100 Voicely Credits**.
+
+Depois de fazer um pagamento, use:
+
+`/balance`
+
+ou simplesmente inicie o bot com `/join`.
+
+O Voicely Translate verificará automaticamente os créditos recém-comprados.
+
+O comando `/topup` requer a permissão de **Administrador**.
+
+## Como a tradução funciona
+
+Quando alguém fala no canal de voz, o Voicely Translate processa a fala dessa pessoa de forma independente.
+
+O processo básico é:
+
+1. O Voicely Translate recebe o áudio de voz da pessoa.
+2. O áudio é transcrito no idioma que está sendo realmente falado.
+3. A transcrição é traduzida para os idiomas atualmente ativados.
+4. A transcrição original e as traduções são publicadas no chat lateral do canal de voz.
+
+Como os falantes são processados independentemente, o bot foi projetado para lidar com conversas em que várias pessoas podem falar ao mesmo tempo ou quase ao mesmo tempo.
+
+Pausas curtas são usadas para determinar quando uma fala terminou antes de ela ser enviada para transcrição.
+
+Sons não verbais e ruídos isolados de hesitação podem ser ignorados em vez de publicados como mensagens.
 
 ## Exemplo
 
+Imagine três pessoas em um canal de voz com inglês, japonês e espanhol ativados.
+
+Alguém diz:
+
 > Are we ready to go?
 
-**Original — English**  
+O Voicely Translate pode publicar a transcrição original junto com traduções como:
+
+**Original — Inglês**  
 Are we ready to go?
 
-**Japanese**  
+**Japonês**  
 もう行く準備はできた？
 
-**Spanish**  
+**Espanhol**  
 ¿Estamos listos para irnos?
 
-O formato e as traduções podem variar.
+A formatação e as traduções exatas podem variar.
 
-## Comandos
+## Referência de comandos
 
 | Comando | Descrição |
 | --- | --- |
-| `/join` | Entra no canal e inicia a tradução. |
-| `/add` | Adiciona idiomas. |
-| `/remove` | Remove idiomas. |
-| `/active` | Mostra idiomas ativos. |
-| `/languages` | Mostra tags comuns. |
-| `/leave` | Encerra a tradução e sai. |
-| `/balance` | Mostra créditos restantes. |
-| `/usage` | Mostra o uso. |
-| `/topup` | Instruções para adicionar créditos. Administrador. |
-| `/timeout` | Altera o tempo limite de canal vazio. Administrador. |
+| `/join` | Entra no seu canal de voz atual e começa a traduzir. |
+| `/add` | Adiciona um ou mais idiomas de tradução à sessão ativa. |
+| `/remove` | Remove um ou mais idiomas de tradução da sessão ativa. |
+| `/active` | Mostra os idiomas de tradução atualmente ativados. |
+| `/languages` | Mostra tags de idioma comuns que podem ser usadas com o bot. |
+| `/leave` | Para a tradução e sai do canal de voz. |
+| `/balance` | Mostra os Voicely Credits restantes do servidor. |
+| `/usage` | Mostra o uso de transcrição e tradução do servidor. |
+| `/topup` | Obtém instruções para adicionar mais Voicely Credits. Somente administradores. |
+| `/timeout` | Altera o tempo limite do canal vazio. Somente administradores. |
 
-## Voicely Text
+## Usando o Voicely Text
 
-Para ouvir as traduções em voz alta, use [**Voicely Text**](https://discord.com/application-directory/1290741552158609419) junto com o Voicely Translate.
+O Voicely Translate foi projetado para exibir traduções como texto.
 
-## Dicas
+Se você também quiser que as mensagens traduzidas sejam **lidas em voz alta no canal de voz**, pode usar o Voicely Translate junto com o [**Voicely Text**](https://discord.com/application-directory/1290741552158609419).
 
-Fale claramente, evite ruído ou música muito altos e escolha tags adequadas. Transcrição e tradução automáticas podem errar nomes, gírias, falas curtas, áudio ruidoso ou ambíguo.
+Quando o Voicely Translate entra em um servidor que não tem o Voicely Text instalado, ele pode fornecer um link para adicioná-lo.
 
-## Privacidade
+## Dicas para melhores resultados
 
-O bot precisa processar o áudio para transcrever e traduzir. Os responsáveis pelo servidor devem garantir que as pessoas saibam que a conversa está sendo transcrita enquanto o bot estiver presente. `/join` inicia a sessão e `/leave` a encerra.
+Para obter a melhor qualidade de transcrição e tradução:
 
-## Sobre
+* Fale claramente e em volume normal.
+* Evite música de fundo ou ruído extremamente altos.
+* Use as tags de idioma mais apropriadas para a conversa.
+* Lembre-se de que transcrição e tradução automáticas podem cometer erros, especialmente com nomes, gírias, falas muito curtas, muito ruído de fundo ou fala ambígua.
+* Use tags de idioma regionais quando a distinção for importante.
 
-Voicely Translate facilita conversas multilíngues no Discord ao colocar a fala original e suas traduções no mesmo lugar.
+## Privacidade e processamento de voz
+
+O Voicely Translate precisa processar o áudio de voz para fornecer transcrição e tradução.
+
+Os proprietários do servidor devem garantir que as pessoas que usam um canal de voz entendam que o bot está transcrevendo a conversa enquanto estiver presente.
+
+O bot só inicia uma sessão de tradução depois que alguém usa explicitamente `/join`, e `/leave` pode ser usado para interromper a sessão.
+
+## Sobre o Voicely Translate
+
+O Voicely Translate foi projetado para facilitar conversas de voz multilíngues no Discord, colocando a fala original e as traduções juntas no mesmo lugar onde a conversa está acontecendo.
+
+Em vez de exigir que todos em uma chamada falem o mesmo idioma, os participantes podem falar naturalmente enquanto usam o chat lateral do canal de voz para acompanhar a conversa nos idiomas que entendem.
 
 ## Suporte
+
 Se você tiver algum problema com o bot ou quiser solicitar um recurso, crie uma [issue](https://github.com/Erallie/voicely-translate/issues), e farei o possível para resolver!

@@ -10,51 +10,296 @@
 
 ---
 
-[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [Русский](README.ru.md) | [العربية](README.ar.md) | [हिन्दी](README.hi.md) | [Bahasa Indonesia](README.id.md)
+[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [Русский](README.ru.md) | [العربية](README.ar.md) | [हिन्दी](README.hi.md) | Bahasa Indonesia
 
-## Panduan pengguna
+Voicely Translate adalah bot Discord yang secara otomatis mentranskripsikan dan menerjemahkan percakapan yang berlangsung di saluran suara.
 
-Voicely Translate adalah bot Discord yang secara otomatis mentranskripsikan percakapan di kanal suara dan menerjemahkannya ke beberapa bahasa. Setiap pembicara diproses secara terpisah sehingga percakapan yang tumpang tindih dapat ditangani, dan hasilnya diposting di chat samping kanal suara.
+Saat bot aktif di saluran suara, bot mendengarkan setiap pembicara secara terpisah, mentranskripsikan apa yang mereka katakan, lalu memposting transkripsi asli beserta terjemahannya ke chat samping saluran suara.
+
+Beberapa bahasa terjemahan dapat diaktifkan sekaligus, dan bahasa dapat ditambahkan atau dihapus saat bot sedang menerjemahkan.
 
 ## Fitur
-* Transkripsi otomatis dan terjemahan multibahasa.
-* Beberapa bahasa terjemahan aktif sekaligus.
-* Tambah atau hapus bahasa saat sesi berjalan.
-* Tag bahasa BCP 47 tanpa daftar batas tetap.
-* Keluar otomatis dari kanal kosong setelah waktu yang dapat diatur.
-* Dapat digunakan dengan [**Voicely Text**](https://discord.com/application-directory/1290741552158609419) untuk membacakan terjemahan.
 
-## Instalasi dan mulai
-Tambahkan bot melalui [tautan undangan](https://discord.com/oauth2/authorize?client_id=1535789654974930964), masuk ke kanal suara biasa, lalu gunakan `/join languages:en,ja`. Pisahkan beberapa tag dengan koma. Hasil diposting di **chat samping kanal suara tersebut**.
+* Secara otomatis mentranskripsikan ucapan dari saluran suara Discord.
+* Menerjemahkan percakapan ke beberapa bahasa sekaligus.
+* Memposting transkripsi dan terjemahan langsung ke chat samping saluran suara.
+* Mendukung beberapa orang yang berbicara, termasuk ketika ucapan mereka saling tumpang tindih.
+* Memungkinkan bahasa terjemahan ditambahkan atau dihapus tanpa memulai ulang sesi.
+* Menggunakan tag bahasa BCP 47, sehingga bahasa di luar daftar bawaan tetap dapat diminta.
+* Secara otomatis keluar dari saluran suara yang kosong setelah batas waktu yang dapat dikonfigurasi.
+* Secara opsional dapat digunakan bersama [**Voicely Text**](https://discord.com/application-directory/1290741552158609419) untuk membacakan pesan terjemahan dengan suara.
 
-`/languages` menampilkan tag umum seperti `en`, `ja`, `es`, `fr`, `de`, `ko`, `zh`, dan `haw`. Tag regional seperti `pt-BR` dan `zh-TW` juga dapat digunakan. Daftar tersebut bukan batas dukungan.
+## Menambahkan Voicely Translate ke server Anda
 
-## Mengubah bahasa
-`/add languages:fr,ko` menambah · `/remove languages:en,fr` menghapus · `/active` melihat bahasa aktif · `/leave` menghentikan sesi.
+Tambahkan Voicely Translate ke server Discord Anda menggunakan [tautan undangan ini](https://discord.com/oauth2/authorize?client_id=1535789654974930964).
 
-## Batas waktu kanal kosong
-Administrator dapat menggunakan `/timeout seconds:60`. Nilai bawaan adalah **30 detik**.
+Setelah dipasang, perintahnya akan tersedia sebagai slash command Discord.
+
+Untuk mulai menerjemahkan, masuk ke saluran suara Discord biasa lalu gunakan:
+
+`/join`
+
+Anda harus sudah berada di saluran suara yang ingin dimasuki Voicely Translate.
+
+## Memulai sesi terjemahan
+
+Gunakan:
+
+`/join languages:<tag bahasa>`
+
+Opsi `languages` menentukan bahasa tujuan terjemahan percakapan.
+
+Pisahkan beberapa bahasa dengan koma.
+
+Contoh:
+
+`/join languages:en,ja`
+
+Ini memulai sesi terjemahan dengan bahasa Inggris dan Jepang diaktifkan.
+
+Anda dapat mengaktifkan sebanyak mungkin bahasa yang diperlukan:
+
+`/join languages:en,ja,es,fr,de,ko`
+
+Setelah terhubung, Voicely Translate akan memposting transkripsi dan terjemahannya di **chat samping yang dimiliki oleh saluran suara tersebut**.
+
+## Tag bahasa
+
+Voicely Translate menggunakan tag bahasa, bukan nama bahasa.
+
+Contoh:
+
+* `en` — Inggris
+* `ja` — Jepang
+* `es` — Spanyol
+* `fr` — Prancis
+* `de` — Jerman
+* `ko` — Korea
+* `zh` — Mandarin
+* `haw` — Hawaii
+
+Tag BCP 47 regional dan khusus sistem tulisan juga dapat digunakan, seperti `pt-BR` atau `zh-TW`.
+
+Gunakan:
+
+`/languages`
+
+untuk melihat daftar referensi tag bahasa umum.
+
+Bot **tidak terbatas pada bahasa yang ditampilkan di `/languages`**. Anda juga dapat mencoba tag bahasa BCP 47 valid lainnya.
+
+## Mengubah bahasa saat menerjemahkan
+
+Anda tidak perlu membuat bot keluar lalu bergabung kembali hanya untuk mengubah bahasa.
+
+### Menambahkan bahasa
+
+Gunakan:
+
+`/add languages:<tag bahasa>`
+
+Contoh:
+
+`/add languages:fr,ko`
+
+menambahkan bahasa Prancis dan Korea ke sesi terjemahan saat ini.
+
+### Menghapus bahasa
+
+Gunakan:
+
+`/remove languages:<tag bahasa>`
+
+Contoh:
+
+`/remove languages:en,fr`
+
+menghapus bahasa Inggris dan Prancis dari sesi terjemahan saat ini.
+
+Menghapus bahasa hanya memengaruhi terjemahan berikutnya. Bot dapat terus menerjemahkan ke bahasa apa pun yang tetap diaktifkan.
+
+### Melihat bahasa aktif
+
+Gunakan:
+
+`/active`
+
+untuk melihat bahasa terjemahan yang sedang diaktifkan.
+
+## Menghentikan terjemahan
+
+Gunakan:
+
+`/leave`
+
+untuk menghentikan sesi terjemahan saat ini dan membuat Voicely Translate keluar dari saluran suara.
+
+Bot juga dapat keluar secara otomatis ketika tidak ada orang yang tersisa di saluran suara.
+
+## Batas waktu saluran suara kosong
+
+Administrator server dapat mengatur berapa lama Voicely Translate menunggu di saluran suara kosong sebelum keluar secara otomatis.
+
+Gunakan:
+
+`/timeout seconds:<detik>`
+
+Contoh:
+
+`/timeout seconds:60`
+
+membuat bot menunggu selama 60 detik setelah saluran suara menjadi kosong.
+
+Batas waktu default adalah **30 detik**.
+
+Perintah ini memerlukan izin **Administrator**.
 
 ## Voicely Credits
-**100 Voicely Credits = $1.00 USD.** Server baru saat ini menerima **50 kredit uji coba gratis**. Transkripsi dan terjemahan menggunakan kredit; lebih banyak bahasa dapat meningkatkan penggunaan.
 
-`/balance` menampilkan kredit tersedia, uji coba, dan yang dibeli. `/usage` menampilkan total penggunaan API, transkripsi, terjemahan, dan total pembelian. Kredit dimiliki oleh **server Discord**, bukan pengguna individu.
+Voicely Translate menggunakan sistem kredit untuk membayar layanan transkripsi dan terjemahan yang diperlukan untuk memproses percakapan suara.
 
-Administrator menggunakan `/topup` untuk mendapatkan kode unik server dan membeli kredit melalui Ko-fi. **Setiap $1.00 USD menambah 100 kredit**. Sertakan kode persis dalam pesan pembayaran, lalu gunakan `/balance` atau `/join`.
+**100 Voicely Credits = $1.00 USD.**
 
-## Cara kerja
-1. Bot menerima audio setiap pembicara.
-2. Audio ditranskripsikan dalam bahasa yang benar-benar diucapkan.
-3. Teks diterjemahkan ke bahasa aktif.
-4. Teks asli dan terjemahan diposting ke chat samping.
+Server baru saat ini menerima **50 kredit uji coba gratis**.
 
-Jeda singkat digunakan untuk menentukan akhir ucapan. Suara nonverbal dan suara ragu yang berdiri sendiri dapat diabaikan.
+Kredit digunakan saat ucapan ditranskripsikan dan diterjemahkan. Jumlah yang digunakan dapat berbeda tergantung pada seberapa banyak orang berbicara dan berapa banyak terjemahan yang diminta.
 
-## Perintah
-`/join` mulai · `/add` tambah · `/remove` hapus · `/active` bahasa aktif · `/languages` tag · `/leave` berhenti · `/balance` saldo · `/usage` penggunaan · `/topup` isi ulang (admin) · `/timeout` batas waktu (admin).
+Mengaktifkan lebih banyak bahasa terjemahan dapat meningkatkan penggunaan karena setiap transkripsi harus diterjemahkan ke bahasa yang diminta.
 
-## Kualitas dan privasi
-Bicaralah dengan jelas dan hindari musik atau kebisingan latar yang keras. Sistem otomatis dapat salah pada nama, slang, ucapan sangat singkat, atau audio ambigu. Bot harus memproses audio suara untuk menyediakan layanan; peserta perlu mengetahui bahwa percakapan ditranskripsikan selama bot hadir.
+### Memeriksa saldo Anda
+
+Gunakan:
+
+`/balance`
+
+untuk melihat:
+
+* Kredit yang tersedia
+* Kredit uji coba gratis yang tersisa
+* Kredit yang dibeli
+
+### Memeriksa penggunaan
+
+Gunakan:
+
+`/usage`
+
+untuk melihat penggunaan kumulatif server, termasuk:
+
+* Total penggunaan API
+* Penggunaan transkripsi
+* Penggunaan terjemahan
+* Total kredit yang dibeli
+
+Saldo kredit dan penggunaan dimiliki oleh **server Discord**, bukan oleh pengguna Discord individual.
+
+## Menambahkan lebih banyak kredit
+
+Administrator server dapat menggunakan:
+
+`/topup`
+
+Voicely Translate akan memberikan kode top-up unik untuk server dan petunjuk untuk membeli kredit tambahan melalui Ko-fi.
+
+Saat melakukan pembayaran, sertakan kode top-up yang diberikan dalam pesan pembayaran Ko-fi.
+
+Setiap **$1.00 USD menambahkan 100 Voicely Credits**.
+
+Setelah melakukan pembayaran, gunakan:
+
+`/balance`
+
+atau cukup mulai bot dengan `/join`.
+
+Voicely Translate akan secara otomatis memeriksa kredit yang baru dibeli.
+
+Perintah `/topup` memerlukan izin **Administrator**.
+
+## Cara kerja terjemahan
+
+Ketika seseorang berbicara di saluran suara, Voicely Translate memproses ucapan orang tersebut secara independen.
+
+Proses dasarnya adalah:
+
+1. Voicely Translate menerima audio suara pembicara.
+2. Audio ditranskripsikan dalam bahasa yang benar-benar sedang digunakan.
+3. Transkripsi diterjemahkan ke bahasa yang sedang diaktifkan.
+4. Transkripsi asli dan terjemahan diposting ke chat samping saluran suara.
+
+Karena pembicara diproses secara independen, bot dirancang untuk menangani percakapan ketika beberapa orang berbicara pada saat yang sama atau hampir bersamaan.
+
+Jeda singkat digunakan untuk menentukan kapan suatu ucapan telah selesai sebelum dikirim untuk ditranskripsikan.
+
+Suara nonverbal dan suara keraguan yang berdiri sendiri dapat diabaikan alih-alih diposting sebagai pesan.
+
+## Contoh
+
+Bayangkan tiga orang berada di saluran suara dengan bahasa Inggris, Jepang, dan Spanyol diaktifkan.
+
+Seseorang mengatakan:
+
+> Are we ready to go?
+
+Voicely Translate dapat memposting transkripsi asli bersama terjemahan seperti:
+
+**Asli — Inggris**  
+Are we ready to go?
+
+**Jepang**  
+もう行く準備はできた？
+
+**Spanyol**  
+¿Estamos listos para irnos?
+
+Format dan terjemahan yang tepat dapat berbeda.
+
+## Referensi perintah
+
+| Perintah | Deskripsi |
+| --- | --- |
+| `/join` | Bergabung ke saluran suara Anda saat ini dan mulai menerjemahkan. |
+| `/add` | Menambahkan satu atau beberapa bahasa terjemahan ke sesi aktif. |
+| `/remove` | Menghapus satu atau beberapa bahasa terjemahan dari sesi aktif. |
+| `/active` | Menampilkan bahasa terjemahan yang sedang diaktifkan. |
+| `/languages` | Menampilkan tag bahasa umum yang dapat digunakan dengan bot. |
+| `/leave` | Menghentikan terjemahan dan keluar dari saluran suara. |
+| `/balance` | Menampilkan sisa Voicely Credits server. |
+| `/usage` | Menampilkan penggunaan transkripsi dan terjemahan server. |
+| `/topup` | Mendapatkan petunjuk untuk menambahkan lebih banyak Voicely Credits. Khusus administrator. |
+| `/timeout` | Mengubah batas waktu saluran kosong. Khusus administrator. |
+
+## Menggunakan Voicely Text
+
+Voicely Translate dirancang untuk menampilkan terjemahan sebagai teks.
+
+Jika Anda juga ingin pesan terjemahan **dibacakan dengan suara di saluran suara**, Anda dapat menggunakan Voicely Translate bersama [**Voicely Text**](https://discord.com/application-directory/1290741552158609419).
+
+Saat Voicely Translate bergabung ke server yang belum memasang Voicely Text, bot dapat memberikan tautan untuk menambahkannya.
+
+## Tips untuk hasil yang lebih baik
+
+Untuk kualitas transkripsi dan terjemahan terbaik:
+
+* Berbicaralah dengan jelas dan pada volume normal.
+* Hindari musik latar atau kebisingan yang sangat keras.
+* Gunakan tag bahasa yang paling sesuai untuk percakapan.
+* Ingat bahwa transkripsi dan terjemahan otomatis dapat membuat kesalahan, terutama pada nama, bahasa gaul, ucapan yang sangat pendek, kebisingan latar yang berat, atau ucapan yang ambigu.
+* Gunakan tag bahasa regional ketika perbedaannya penting.
+
+## Privasi dan pemrosesan suara
+
+Voicely Translate harus memproses audio suara untuk menyediakan transkripsi dan terjemahan.
+
+Pemilik server harus memastikan bahwa orang yang menggunakan saluran suara memahami bahwa bot sedang mentranskripsikan percakapan selama bot berada di sana.
+
+Bot hanya memulai sesi terjemahan setelah seseorang secara eksplisit menggunakan `/join`, dan `/leave` dapat digunakan untuk menghentikan sesi.
+
+## Tentang Voicely Translate
+
+Voicely Translate dirancang untuk mempermudah percakapan suara multibahasa di Discord dengan menempatkan ucapan asli dan terjemahan bersama-sama di tempat yang sama dengan berlangsungnya percakapan.
+
+Alih-alih mengharuskan semua orang dalam panggilan berbicara dalam bahasa yang sama, peserta dapat berbicara secara alami sambil menggunakan chat samping saluran suara untuk mengikuti percakapan dalam bahasa yang mereka pahami.
 
 ## Dukungan
-Jika Anda mengalami masalah dengan bot atau ingin meminta fitur, silakan buat [issue](https://github.com/Erallie/voicely-translate/issues), dan saya akan menanganinya sebaik mungkin!
+
+Jika Anda mengalami masalah dengan bot atau ingin meminta fitur, silakan buat [issue](https://github.com/Erallie/voicely-translate/issues), dan saya akan berusaha sebaik mungkin untuk menanganinya!

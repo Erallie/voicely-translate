@@ -8,53 +8,305 @@
 [![Our Other Projects](https://img.shields.io/badge/Our%20Other%20Projects-%E2%9D%A4-563294?style=for-the-badge&logo=data%3Aimage%2Fwebp%3Bbase64%2CUklGRu4DAABXRUJQVlA4WAoAAAAQAAAAHwAAHwAAQUxQSGABAAABgFtbm5volyZTA%2BtibzK2H0w5sDkmhe3GmxrwxGg0839r%2FvkkOogIBW7bKB0c4%2BARYihzIqfd6dfO%2B%2B3XtHsq4jJhlIvcDRcgNB%2FeieQETorBHgghRtUYqwDs%2B4U4IpcvUB%2BVUPSK54uEnTwsUJoar2DeMpzLxQpeG5DH8lxyyfLivVYAwPBbkWdOBg3qFlqiLy679iHy9UDKMZRXmYxpCcusayTHG01K%2FEtatYWuj7oI9hL4BxsxVwhoP2mlAJJ%2BuuAflc6%2BEUCQTCX9EV87xBR2H75NxLZSpWiwzqdIm7ZO7uB3oEgZKbD9Nt3EmHweEPH1t1GNsZUbKeisiwjyTm5fA3SO1yCrADZXrV2PZQJPL1tjN4%2BxUL9ie1mJobzOnDwSx6ILiF%2FW%2BTUR4tcHx0UaV75JXC1a4g6Ky5dLcTSuy9q4HhTieF64Hy1A3GHB8gLLK2e92feuqnbfPK8IVlA4IGgCAACwDQCdASogACAAPk0cjEQioaEb%2BqwAKATEtgBOl7v9V3sHcA2wG4A3gD0APLP9jX9n%2F2jmqv5AZRh7J%2BN2fOx22iE%2F4TUsecFmY%2BSf1r%2BAP%2BTfzT%2FXdIB7KX7MtdIGr1A8H0jmrrfZvqButwOaYcLWYNRq5QgAAP7%2F%2FmIMpiVNn67QXpM1rrDmRS8Nr%2F6dhD%2Bq5e%2BM%2BAtUP1%2FxOj85Ol5y3ebjz%2BpHoOf%2FWW8a%2F2ojUaKVDkVqof%2Bv4f0f6ud8i58wusz%2Fyrj%2F%2BwnM3q0769dvK%2F%2BQe04xL49tkb9t6ylCqqezZtZGuGLJ%2F5iUrPqdYc%2F8VbYZfP%2FOpZP%2F4X4q%2BqS4gPOxzdINOe5PGv%2F0TS%2FJRf4LlFrFkrWtxlS8n40grV%2BKUu%2FiwzdQzImvwH81FxL1bZyTSsrYwMku1Pk9StTtWNjSR8ZWEYBH9eTn%2FvBERii5XaWOPJ%2FFVXtVQGbv%2BFRW5jbo9tfFDu%2BDHHf8LbgUd%2F8W8Id1AehBtRNsLQWbADmvF1QJU8x5tw%2FtTUwIoSaa%2F2jkcvyVHkAsb2qoIh1KF1pPdae%2BZaqjydy6nUa9agjrDk1G4pMhEUhH%2BV%2FIUe49MjhR%2FuxyFmwQ8dDogMyQ%2BdcSBa56Lwt1wyJ%2F22%2F5O98r6q6wiM63HyaYONd36W7br%2F0%2F6y2DZ3irAddj%2FRxntvr%2FbbChSYXAfEbO%2FD0G%2FFbMFqTHypodt9T6dAx%2BUjJYfHzFf%2FM3Ec%2FAtwbjc2gka6urN1MlSLb2VTS9Q5r8fkDzxZz6vu1OYUPUB1UFMIhYGvMATbxxoTmVhvpovzAc%2F8nbOjw3wAAA)](https://github.com/Erallie)
 [![Donate](https://img.shields.io/badge/Donate-%24-563294?style=for-the-badge&logo=ko-fi&logoColor=FFFFFF&color=FF6433)](https://www.ko-fi.com/GozarProductions)
 
----
+------------------------------------------------------------------------
 
-[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [Русский](README.ru.md) | [العربية](README.ar.md) | [हिन्दी](README.hi.md) | [Bahasa Indonesia](README.id.md)
+[English](README.md) \| [Español](README.es.md) \|
+[Português](README.pt-BR.md) \| [Français](README.fr.md) \|
+[Deutsch](README.de.md) \| 日本語 \| [한국어](README.ko.md) \|
+[简体中文](README.zh-CN.md) \| [Русский](README.ru.md) \|
+[العربية](README.ar.md) \| [हिन्दी](README.hi.md) \| [Bahasa
+Indonesia](README.id.md)
 
-## ユーザーガイド
+Voicely Translateは、ボイスチャンネルで行われている会話を自動的に文字起こしし、翻訳するDiscordボットです。
 
-Voicely Translateは、Discordのボイスチャンネルでの会話を自動的に文字起こしし、複数の言語へ翻訳するボットです。話者ごとに音声を個別処理するため、複数人が重なって話した場合にも対応でき、結果はボイスチャンネルのサイドチャットへ投稿されます。
+ボイスチャンネルでボットが有効になっている間、各話者の音声を個別に聞き取り、発言を文字起こしして、原文と翻訳をボイスチャンネルのサイドチャットに投稿します。
 
-## 主な機能
-* 音声の自動文字起こしと多言語翻訳。
-* 複数の翻訳先言語を同時に有効化。
-* セッション中に言語を追加・削除。
-* 固定リストに制限されないBCP 47言語タグ。
-* 空のボイスチャンネルから一定時間後に自動退出。
-* [**Voicely Text**](https://discord.com/application-directory/1290741552158609419) と組み合わせて翻訳を読み上げ可能。
+複数の翻訳先言語を同時に有効にでき、ボットが翻訳中でも言語を追加または削除できます。
 
-## 導入と開始
-[招待リンク](https://discord.com/oauth2/authorize?client_id=1535789654974930964)から追加し、通常のボイスチャンネルに入って `/join languages:en,ja` を実行します。複数のタグはカンマで区切ります。文字起こしと翻訳は**そのボイスチャンネルのサイドチャット**に投稿されます。
+## 機能
 
-`/languages` では `en`、`ja`、`es`、`fr`、`de`、`ko`、`zh`、`haw` などの例を確認できます。`pt-BR` や `zh-TW` のような地域タグも使用できます。表示される一覧は上限ではありません。
+-   Discordのボイスチャンネルの音声を自動的に文字起こしします。
+-   会話を複数の言語へ同時に翻訳します。
+-   文字起こしと翻訳をボイスチャンネルのサイドチャットへ直接投稿します。
+-   複数人の発話に対応し、話者同士の発言が重なった場合にも対応します。
+-   セッションを再起動せずに翻訳先言語を追加または削除できます。
+-   BCP 47言語タグを使用するため、固定された内蔵リスト以外の言語も指定できます。
+-   設定可能なタイムアウト後、空になったボイスチャンネルから自動的に退出します。
+-   必要に応じて[**Voicely Text**](https://discord.com/application-directory/1290741552158609419)と組み合わせ、翻訳メッセージを読み上げることができます。
 
-## 言語の変更
-`/add languages:fr,ko` で追加、`/remove languages:en,fr` で削除、`/active` で現在の言語を確認、`/leave` で終了します。
+## Voicely Translateをサーバーに追加する
 
-## 空チャンネルのタイムアウト
-管理者は `/timeout seconds:60` のように設定できます。初期値は **30秒** です。
+[この招待リンク](https://discord.com/oauth2/authorize?client_id=1535789654974930964)を使用して、Voicely
+TranslateをDiscordサーバーに追加してください。
+
+インストールすると、Discordのスラッシュコマンドとして各コマンドを使用できます。
+
+翻訳を開始するには、通常のDiscordボイスチャンネルに参加して次を使用します。
+
+`/join`
+
+Voicely Translateに参加させたいボイスチャンネルに、あらかじめ自分自身が参加している必要があります。
+
+## 翻訳セッションを開始する
+
+次を使用します。
+
+`/join languages:<言語タグ>`
+
+`languages`オプションでは、会話をどの言語へ翻訳するかを指定します。
+
+複数の言語はカンマで区切ります。
+
+例：
+
+`/join languages:en,ja`
+
+これにより、英語と日本語を有効にした翻訳セッションが開始されます。
+
+必要な数だけ言語を有効にできます。
+
+`/join languages:en,ja,es,fr,de,ko`
+
+接続後、Voicely Translateは文字起こしと翻訳を**そのボイスチャンネルに属するサイドチャット**へ投稿します。
+
+## 言語タグ
+
+Voicely Translateでは、言語名ではなく言語タグを使用します。
+
+例：
+
+-   `en` --- 英語
+-   `ja` --- 日本語
+-   `es` --- スペイン語
+-   `fr` --- フランス語
+-   `de` --- ドイツ語
+-   `ko` --- 韓国語
+-   `zh` --- 中国語
+-   `haw` --- ハワイ語
+
+`pt-BR`や`zh-TW`など、地域や文字体系を指定するBCP 47タグも使用できます。
+
+次を使用すると、
+
+`/languages`
+
+一般的な言語タグの参考一覧を確認できます。
+
+ボットは**`/languages`に表示される言語だけに制限されているわけではありません**。その他の有効なBCP 47言語タグも試すことができます。
+
+## 翻訳中に言語を変更する
+
+言語を変更するためだけに、ボットを退出させて再参加させる必要はありません。
+
+### 言語を追加する
+
+次を使用します。
+
+`/add languages:<言語タグ>`
+
+例：
+
+`/add languages:fr,ko`
+
+現在の翻訳セッションにフランス語と韓国語を追加します。
+
+### 言語を削除する
+
+次を使用します。
+
+`/remove languages:<言語タグ>`
+
+例：
+
+`/remove languages:en,fr`
+
+現在の翻訳セッションから英語とフランス語を削除します。
+
+言語を削除しても、影響するのは今後の翻訳だけです。有効なまま残っている言語への翻訳は継続できます。
+
+### 有効な言語を確認する
+
+次を使用します。
+
+`/active`
+
+現在有効になっている翻訳先言語を確認できます。
+
+## 翻訳を停止する
+
+次を使用します。
+
+`/leave`
+
+現在の翻訳セッションを停止し、Voicely Translateをボイスチャンネルから退出させます。
+
+ボイスチャンネルに誰もいなくなった場合、ボットは自動的に退出することもできます。
+
+## 空のボイスチャンネルのタイムアウト
+
+サーバー管理者は、空になったボイスチャンネルからVoicely Translateが自動退出するまでの待機時間を設定できます。
+
+次を使用します。
+
+`/timeout seconds:<秒数>`
+
+例：
+
+`/timeout seconds:60`
+
+ボイスチャンネルが空になってから60秒間待機するようになります。
+
+デフォルトのタイムアウトは**30秒**です。
+
+このコマンドには**管理者（Administrator）**権限が必要です。
 
 ## Voicely Credits
-**100 Voicely Credits = 1.00 USD**。新しいサーバーには現在 **50無料トライアルクレジット** が付与されます。文字起こしと翻訳でクレジットを消費し、翻訳先が多いほど使用量が増える場合があります。
 
-`/balance` は残高、無料分、購入分を表示します。`/usage` はAPI総使用量、文字起こし、翻訳、購入総額を表示します。クレジットは個人ではなく**Discordサーバー**に属します。
+Voicely Translateは、音声会話の処理に必要な文字起こしおよび翻訳サービスの費用を支払うため、クレジット制を使用しています。
 
-管理者は `/topup` でサーバー固有コードを取得し、Ko-fiで購入できます。**1.00 USDごとに100クレジット**追加されます。支払いメッセージにコードを正確に記載し、その後 `/balance` または `/join` を使用します。
+**100 Voicely Credits = \$1.00 USDです。**
 
-## 処理の流れ
-1. 各話者の音声を受信。
-2. 実際に話された言語で文字起こし。
-3. 有効な言語へ翻訳。
-4. 原文と翻訳をサイドチャットへ投稿。
+新しいサーバーには現在、**50無料トライアルクレジット**が付与されます。
 
-短い無音で発話の終了を判断します。非言語音や単独のためらい音は無視される場合があります。
+音声が文字起こし・翻訳されるたびにクレジットが消費されます。使用量は、会話量や要求された翻訳数によって変わります。
 
-## コマンド
-`/join` 開始 · `/add` 追加 · `/remove` 削除 · `/active` 有効言語 · `/languages` タグ一覧 · `/leave` 終了 · `/balance` 残高 · `/usage` 使用量 · `/topup` チャージ（管理者） · `/timeout` タイムアウト（管理者）。
+翻訳先言語を増やすと、それぞれの文字起こしを指定された各言語へ翻訳する必要があるため、使用量が増える場合があります。
 
-## 品質とプライバシー
-はっきり話し、大きなBGMや雑音を避けてください。自動処理のため、固有名詞、スラング、短い発話、曖昧な音声では誤りが発生することがあります。サービス提供には音声処理が必要です。ボットが参加している間は会話が文字起こしされることを参加者へ知らせてください。
+### 残高を確認する
+
+次を使用します。
+
+`/balance`
+
+次の内容を確認できます。
+
+-   利用可能なクレジット
+-   残っている無料トライアルクレジット
+-   購入済みクレジット
+
+### 使用量を確認する
+
+次を使用します。
+
+`/usage`
+
+サーバーの累積使用量として、次の内容を確認できます。
+
+-   API総使用量
+-   文字起こし使用量
+-   翻訳使用量
+-   購入済みクレジット総量
+
+クレジット残高と使用量は、個々のDiscordユーザーではなく**Discordサーバー**に属します。
+
+## クレジットを追加する
+
+サーバー管理者は次を使用できます。
+
+`/topup`
+
+Voicely Translateは、そのサーバー専用の一意のチャージコードと、Ko-fiを通じて追加クレジットを購入するための手順を表示します。
+
+支払い時には、表示されたチャージコードをKo-fiの支払いメッセージに含めてください。
+
+**\$1.00 USDごとに100 Voicely Creditsが追加されます。**
+
+支払い後、次を使用します。
+
+`/balance`
+
+または、`/join`でボットを開始するだけでもかまいません。
+
+Voicely Translateが新しく購入されたクレジットを自動的に確認します。
+
+`/topup`コマンドには**管理者（Administrator）**権限が必要です。
+
+## 翻訳の仕組み
+
+ボイスチャンネルで誰かが話すと、Voicely Translateはその人の音声を個別に処理します。
+
+基本的な処理の流れは次のとおりです。
+
+1.  Voicely Translateが話者の音声を受信します。
+2.  音声を、実際に話されている言語で文字起こしします。
+3.  文字起こしを現在有効になっている言語へ翻訳します。
+4.  原文の文字起こしと翻訳をボイスチャンネルのサイドチャットへ投稿します。
+
+話者ごとに個別処理されるため、複数人が同時またはほぼ同時に話す会話にも対応できるよう設計されています。
+
+短い無音区間を使用して発話が終了したかを判断し、その後文字起こしへ送信します。
+
+非言語音や単独のためらい音は、メッセージとして投稿せず無視される場合があります。
+
+## 例
+
+3人がボイスチャンネルにいて、英語、日本語、スペイン語が有効になっているとします。
+
+誰かが次のように言います。
+
+> Are we ready to go?
+
+Voicely Translateは、原文の文字起こしとともに、たとえば次のような翻訳を投稿できます。
+
+**原文 --- 英語**\
+Are we ready to go?
+
+**日本語**\
+もう行く準備はできた？
+
+**スペイン語**\
+¿Estamos listos para irnos?
+
+実際の書式や翻訳内容は異なる場合があります。
+
+## コマンド一覧
+
+ | コマンド                           | 説明 |
+ | ----------------------------------- | -------------------------------------------------------------- |
+ | `/join`                            | 現在参加しているボイスチャンネルに参加し、翻訳を開始します。|
+ | `/add`                             | 現在のセッションに1つ以上の翻訳先言語を追加します。|
+ | `/remove`                          | 現在のセッションから1つ以上の翻訳先言語を削除します。|
+ | `/active`                          | 現在有効になっている翻訳先言語を表示します。|
+ | `/languages`                       | ボットで使用できる一般的な言語タグを表示します。|
+ | `/leave`                           | 翻訳を停止し、ボイスチャンネルから退出します。|
+ | `/balance`                         | サーバーに残っているVoicely Creditsを表示します。|
+ | `/usage`                           | サーバーの文字起こしおよび翻訳の使用量を表示します。|
+ | `/topup`                           | Voicely Creditsを追加する手順を表示します。管理者のみ。|
+ | `/timeout`                         | 空チャンネルのタイムアウトを変更します。管理者のみ。|
+
+
+## Voicely Textを使用する
+
+Voicely Translateは、翻訳をテキストとして表示するよう設計されています。
+
+翻訳メッセージを**ボイスチャンネル内で読み上げたい場合**は、Voicely Translateと[**Voicely Text**](https://discord.com/application-directory/1290741552158609419)を併用できます。
+
+Voicely TextがインストールされていないサーバーにVoicely Translateが参加した場合、追加用リンクが表示されることがあります。
+
+## より良い結果を得るためのヒント
+
+文字起こしと翻訳の品質を高めるには：
+
+-   はっきりと通常の音量で話してください。
+-   極端に大きなBGMや雑音を避けてください。
+-   会話に最も適した言語タグを使用してください。
+-   自動文字起こし・翻訳は、特に名前、スラング、非常に短い発話、大きな背景ノイズ、曖昧な発話などで間違える場合があることを覚えておいてください。
+-   地域差が重要な場合は、地域を指定する言語タグを使用してください。
+
+## プライバシーと音声処理
+
+Voicely Translateは、文字起こしと翻訳を提供するために音声を処理する必要があります。
+
+サーバー所有者は、ボットが参加している間、会話が文字起こしされていることをボイスチャンネルの利用者が理解していることを確認してください。
+
+ボットは誰かが明示的に`/join`を使用した後にのみ翻訳セッションを開始し、`/leave`でセッションを停止できます。
+
+## Voicely Translateについて
+
+Voicely Translateは、元の発話と翻訳を会話が行われている同じ場所にまとめることで、多言語でのDiscordボイス会話をより簡単にするために設計されています。
+
+通話に参加する全員が同じ言語を話す必要はなく、それぞれが自然に話しながら、ボイスチャンネルのサイドチャットを使って理解できる言語で会話を追うことができます。
 
 ## サポート
-ボットに問題がある場合や機能をリクエストしたい場合は、[Issue](https://github.com/Erallie/voicely-translate/issues) を作成してください。できる限り対応します！
+
+ボットに問題がある場合や機能をリクエストしたい場合は、[issue](https://github.com/Erallie/voicely-translate/issues)を作成してください。可能な限り対応します。

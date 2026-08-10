@@ -1530,10 +1530,12 @@ class TranslationSession:
         voice channel.
         """
         user_mention = member.mention
+        guild_locale = getattr(self.voice_channel.guild, "preferred_locale", "en-US")
+        original_label = tr_locale(guild_locale, "original_label")
 
         sections = [
             f"### 🗣️ {user_mention}",
-            f"**Original · `{original_language}`:** {transcript}",
+            f"**{original_label} · `{original_language}`:** {transcript}",
         ]
 
         for language in target_languages:
@@ -2227,6 +2229,75 @@ UI = {
     "left": {"en":"Stopped translating and left the voice channel.","es":"Se detuvo la traducción y salí del canal de voz.","pt":"A tradução foi interrompida e saí do canal de voz.","fr":"La traduction a été arrêtée et j'ai quitté le salon vocal.","de":"Die Übersetzung wurde beendet und ich habe den Sprachkanal verlassen.","ja":"翻訳を停止し、ボイスチャンネルから退出しました。","ko":"번역을 중지하고 음성 채널에서 나갔습니다.","zh":"已停止翻译并离开语音频道。","ru":"Перевод остановлен, я вышел из голосового канала.","ar":"تم إيقاف الترجمة ومغادرة القناة الصوتية.","hi":"अनुवाद बंद कर दिया गया और वॉइस चैनल छोड़ दिया गया।","id":"Penerjemahan dihentikan dan saya keluar dari kanal suara."},
     "timeout_set": {"en":"Empty-channel timeout set to **{seconds} seconds**.","es":"El tiempo de espera del canal vacío se estableció en **{seconds} segundos**.","pt":"O tempo limite do canal vazio foi definido como **{seconds} segundos**.","fr":"Le délai du salon vide est défini sur **{seconds} secondes**.","de":"Die Wartezeit für einen leeren Kanal wurde auf **{seconds} Sekunden** gesetzt.","ja":"空チャンネルのタイムアウトを **{seconds}秒** に設定しました。","ko":"빈 채널 대기 시간을 **{seconds}초**로 설정했습니다.","zh":"空频道超时已设为 **{seconds} 秒**。","ru":"Таймаут пустого канала установлен на **{seconds} секунд**.","ar":"تم ضبط مهلة القناة الفارغة على **{seconds} ثانية**.","hi":"खाली चैनल की समयसीमा **{seconds} सेकंड** पर सेट की गई।","id":"Batas waktu kanal kosong diatur ke **{seconds} detik**."},
     "credit_exhausted": {"en":"### Voicely Translate credit exhausted\nThis server has used all of its available translation credit, so I'm leaving the voice channel.\nAn administrator can use `/topup` to add more credit through Ko-fi.","es":"### Créditos de Voicely Translate agotados\nEste servidor ha usado todos sus créditos de traducción disponibles, así que saldré del canal de voz.\nUn administrador puede usar `/topup` para añadir más créditos mediante Ko-fi.","pt":"### Créditos do Voicely Translate esgotados\nEste servidor usou todos os créditos de tradução disponíveis, então vou sair do canal de voz.\nUm administrador pode usar `/topup` para adicionar créditos pelo Ko-fi.","fr":"### Crédits Voicely Translate épuisés\nCe serveur a utilisé tous ses crédits de traduction disponibles, je quitte donc le salon vocal.\nUn administrateur peut utiliser `/topup` pour ajouter des crédits via Ko-fi.","de":"### Voicely-Translate-Credits aufgebraucht\nDieser Server hat sein gesamtes Übersetzungsguthaben verbraucht, daher verlasse ich den Sprachkanal.\nEin Administrator kann mit `/topup` über Ko-fi weitere Credits hinzufügen.","ja":"### Voicely Translateクレジットを使い切りました\nこのサーバーの利用可能な翻訳クレジットがなくなったため、ボイスチャンネルから退出します。\n管理者は `/topup` でKo-fiからクレジットを追加できます。","ko":"### Voicely Translate 크레딧 소진\n이 서버의 사용 가능한 번역 크레딧을 모두 사용했으므로 음성 채널에서 나갑니다.\n관리자는 `/topup`을 사용해 Ko-fi에서 크레딧을 추가할 수 있습니다.","zh":"### Voicely Translate 点数已用尽\n此服务器已用完所有可用翻译点数，因此我将离开语音频道。\n管理员可以使用 `/topup` 通过 Ko-fi 添加更多点数。","ru":"### Кредиты Voicely Translate закончились\nСервер израсходовал все доступные кредиты перевода, поэтому я выхожу из голосового канала.\nАдминистратор может использовать `/topup`, чтобы добавить кредиты через Ko-fi.","ar":"### نفد رصيد Voicely Translate\nاستخدم هذا الخادم كل رصيد الترجمة المتاح، لذلك سأغادر القناة الصوتية.\nيمكن للمسؤول استخدام `/topup` لإضافة رصيد عبر Ko-fi.","hi":"### Voicely Translate क्रेडिट समाप्त\nइस सर्वर ने उपलब्ध सभी अनुवाद क्रेडिट इस्तेमाल कर लिए हैं, इसलिए मैं वॉइस चैनल छोड़ रहा हूँ।\nएडमिन `/topup` से Ko-fi के माध्यम से और क्रेडिट जोड़ सकता है।","id":"### Kredit Voicely Translate habis\nServer ini telah menggunakan seluruh kredit terjemahan yang tersedia, jadi saya akan keluar dari kanal suara.\nAdministrator dapat menggunakan `/topup` untuk menambah kredit melalui Ko-fi."},
+
+    "no_default_languages": {
+        "en":"No default languages have been set for this server. Specify languages with `/join`, or ask a server administrator to set them with `/defaultlanguages`.",
+        "es":"No se han establecido idiomas predeterminados para este servidor. Especifica idiomas con `/join` o pide a un administrador del servidor que los establezca con `/defaultlanguages`.",
+        "pt":"Nenhum idioma padrão foi definido para este servidor. Especifique idiomas com `/join` ou peça a um administrador do servidor para defini-los com `/defaultlanguages`.",
+        "fr":"Aucune langue par défaut n'a été définie pour ce serveur. Indiquez des langues avec `/join` ou demandez à un administrateur du serveur de les définir avec `/defaultlanguages`.",
+        "de":"Für diesen Server wurden keine Standardsprachen festgelegt. Gib bei `/join` Sprachen an oder bitte einen Serveradministrator, sie mit `/defaultlanguages` festzulegen.",
+        "ja":"このサーバーにはデフォルト言語が設定されていません。`/join` で言語を指定するか、サーバー管理者に `/defaultlanguages` で設定してもらってください。",
+        "ko":"이 서버에는 기본 언어가 설정되어 있지 않습니다. `/join`에서 언어를 지정하거나 서버 관리자에게 `/defaultlanguages`로 설정해 달라고 요청하세요.",
+        "zh":"此服务器尚未设置默认语言。请使用 `/join` 指定语言，或请服务器管理员使用 `/defaultlanguages` 进行设置。",
+        "ru":"Для этого сервера не заданы языки по умолчанию. Укажите языки в `/join` или попросите администратора сервера задать их с помощью `/defaultlanguages`.",
+        "ar":"لم يتم تعيين لغات افتراضية لهذا الخادم. حدّد اللغات باستخدام `/join`، أو اطلب من مسؤول الخادم تعيينها باستخدام `/defaultlanguages`.",
+        "hi":"इस सर्वर के लिए कोई डिफ़ॉल्ट भाषा सेट नहीं की गई है। `/join` में भाषाएँ दें, या सर्वर एडमिन से `/defaultlanguages` के साथ उन्हें सेट करने के लिए कहें।",
+        "id":"Belum ada bahasa default yang ditetapkan untuk server ini. Tentukan bahasa dengan `/join`, atau minta administrator server mengaturnya dengan `/defaultlanguages`.",
+    },
+    "default_languages_set": {
+        "en":"Default translation languages set to: **{languages}**.",
+        "es":"Idiomas de traducción predeterminados establecidos en: **{languages}**.",
+        "pt":"Idiomas de tradução padrão definidos como: **{languages}**.",
+        "fr":"Langues de traduction par défaut définies sur : **{languages}**.",
+        "de":"Standard-Übersetzungssprachen festgelegt auf: **{languages}**.",
+        "ja":"デフォルトの翻訳言語を **{languages}** に設定しました。",
+        "ko":"기본 번역 언어를 **{languages}**(으)로 설정했습니다.",
+        "zh":"默认翻译语言已设置为：**{languages}**。",
+        "ru":"Языки перевода по умолчанию установлены: **{languages}**.",
+        "ar":"تم تعيين لغات الترجمة الافتراضية إلى: **{languages}**.",
+        "hi":"डिफ़ॉल्ट अनुवाद भाषाएँ सेट की गईं: **{languages}**।",
+        "id":"Bahasa terjemahan default ditetapkan ke: **{languages}**.",
+    },
+    "languages_heading": {
+        "en":"**Common language tags**","es":"**Etiquetas de idioma comunes**","pt":"**Tags de idioma comuns**","fr":"**Balises de langue courantes**","de":"**Häufige Sprach-Tags**","ja":"**一般的な言語タグ**","ko":"**일반적인 언어 태그**","zh":"**常用语言标签**","ru":"**Распространённые языковые теги**","ar":"**وسوم اللغات الشائعة**","hi":"**सामान्य भाषा टैग**","id":"**Tag bahasa umum**",
+    },
+    "languages_intro": {
+        "en":"These are common language tags you can use with `/join`, `/add`, and `/remove`.","es":"Estas son etiquetas de idioma comunes que puedes usar con `/join`, `/add` y `/remove`.","pt":"Estas são tags de idioma comuns que você pode usar com `/join`, `/add` e `/remove`.","fr":"Voici des balises de langue courantes que vous pouvez utiliser avec `/join`, `/add` et `/remove`.","de":"Dies sind häufige Sprach-Tags, die du mit `/join`, `/add` und `/remove` verwenden kannst.","ja":"これらは `/join`、`/add`、`/remove` で使用できる一般的な言語タグです。","ko":"다음은 `/join`, `/add`, `/remove`에서 사용할 수 있는 일반적인 언어 태그입니다.","zh":"以下是可用于 `/join`、`/add` 和 `/remove` 的常用语言标签。","ru":"Это распространённые языковые теги, которые можно использовать с `/join`, `/add` и `/remove`.","ar":"هذه وسوم لغات شائعة يمكنك استخدامها مع `/join` و`/add` و`/remove`.","hi":"ये सामान्य भाषा टैग हैं जिन्हें आप `/join`, `/add`, और `/remove` के साथ उपयोग कर सकते हैं।","id":"Berikut adalah tag bahasa umum yang dapat digunakan dengan `/join`, `/add`, dan `/remove`.",
+    },
+    "languages_not_limited": {
+        "en":"Voicely Translate is not limited to this list—you can enter other valid BCP 47 language tags as well.","es":"Voicely Translate no se limita a esta lista; también puedes introducir otras etiquetas de idioma BCP 47 válidas.","pt":"O Voicely Translate não se limita a esta lista; você também pode inserir outras tags de idioma BCP 47 válidas.","fr":"Voicely Translate ne se limite pas à cette liste : vous pouvez également saisir d'autres balises de langue BCP 47 valides.","de":"Voicely Translate ist nicht auf diese Liste beschränkt – du kannst auch andere gültige BCP-47-Sprach-Tags eingeben.","ja":"Voicely Translate はこの一覧に限定されません。他の有効な BCP 47 言語タグも入力できます。","ko":"Voicely Translate는 이 목록에만 제한되지 않습니다. 다른 유효한 BCP 47 언어 태그도 입력할 수 있습니다.","zh":"Voicely Translate 不限于此列表；你也可以输入其他有效的 BCP 47 语言标签。","ru":"Voicely Translate не ограничивается этим списком — можно вводить и другие допустимые языковые теги BCP 47.","ar":"لا يقتصر Voicely Translate على هذه القائمة؛ يمكنك أيضًا إدخال وسوم لغات BCP 47 صالحة أخرى.","hi":"Voicely Translate केवल इस सूची तक सीमित नहीं है—आप अन्य मान्य BCP 47 भाषा टैग भी दर्ज कर सकते हैं।","id":"Voicely Translate tidak terbatas pada daftar ini—Anda juga dapat memasukkan tag bahasa BCP 47 lain yang valid.",
+    },
+    "regional_tags_heading": {
+        "en":"**Common regional/script tags**","es":"**Etiquetas regionales/de escritura comunes**","pt":"**Tags regionais/de escrita comuns**","fr":"**Balises régionales/de script courantes**","de":"**Häufige Regions-/Schrift-Tags**","ja":"**一般的な地域・文字体系タグ**","ko":"**일반적인 지역/문자 태그**","zh":"**常用地区/文字标签**","ru":"**Распространённые региональные теги/теги письменности**","ar":"**وسوم المناطق/أنظمة الكتابة الشائعة**","hi":"**सामान्य क्षेत्रीय/लिपि टैग**","id":"**Tag wilayah/aksara umum**",
+    },
+    "languages_try_other": {
+        "en":"If a language is not listed above, you can still try its BCP 47 language tag.","es":"Si un idioma no aparece arriba, puedes probar igualmente su etiqueta de idioma BCP 47.","pt":"Se um idioma não estiver listado acima, você ainda pode tentar usar sua tag de idioma BCP 47.","fr":"Si une langue ne figure pas ci-dessus, vous pouvez tout de même essayer sa balise de langue BCP 47.","de":"Wenn eine Sprache oben nicht aufgeführt ist, kannst du trotzdem ihr BCP-47-Sprach-Tag ausprobieren.","ja":"上記にない言語でも、その BCP 47 言語タグを試すことができます。","ko":"위 목록에 없는 언어도 해당 BCP 47 언어 태그를 사용해 볼 수 있습니다.","zh":"如果某种语言未列在上方，你仍可以尝试使用其 BCP 47 语言标签。","ru":"Если языка нет в списке выше, всё равно можно попробовать его языковой тег BCP 47.","ar":"إذا لم تكن اللغة مدرجة أعلاه، فلا يزال بإمكانك تجربة وسم BCP 47 الخاص بها.","hi":"यदि कोई भाषा ऊपर सूचीबद्ध नहीं है, तब भी आप उसका BCP 47 भाषा टैग आज़मा सकते हैं।","id":"Jika suatu bahasa tidak tercantum di atas, Anda tetap dapat mencoba tag bahasa BCP 47-nya.",
+    },
+    "topup_not_configured": {
+        "en":"Ko-fi top-ups have not been configured by the bot owner yet. This server's persistent top-up code is **`{code}`**.","es":"El propietario del bot aún no ha configurado las recargas de Ko-fi. El código de recarga permanente de este servidor es **`{code}`**.","pt":"As recargas pelo Ko-fi ainda não foram configuradas pelo proprietário do bot. O código permanente de recarga deste servidor é **`{code}`**.","fr":"Les recharges Ko-fi n'ont pas encore été configurées par le propriétaire du bot. Le code de recharge permanent de ce serveur est **`{code}`**.","de":"Ko-fi-Aufladungen wurden vom Bot-Betreiber noch nicht konfiguriert. Der dauerhafte Aufladecode dieses Servers lautet **`{code}`**.","ja":"Botの所有者がKo-fiチャージをまだ設定していません。このサーバーの固定チャージコードは **`{code}`** です。","ko":"봇 소유자가 아직 Ko-fi 충전을 설정하지 않았습니다. 이 서버의 영구 충전 코드는 **`{code}`**입니다.","zh":"机器人所有者尚未配置 Ko-fi 充值。此服务器的固定充值代码为 **`{code}`**。","ru":"Владелец бота ещё не настроил пополнение через Ko-fi. Постоянный код пополнения этого сервера: **`{code}`**.","ar":"لم يقم مالك البوت بإعداد عمليات الشحن عبر Ko-fi بعد. رمز الشحن الدائم لهذا الخادم هو **`{code}`**.","hi":"बॉट के मालिक ने अभी तक Ko-fi टॉप-अप कॉन्फ़िगर नहीं किए हैं। इस सर्वर का स्थायी टॉप-अप कोड **`{code}`** है।","id":"Top-up Ko-fi belum dikonfigurasi oleh pemilik bot. Kode top-up permanen server ini adalah **`{code}`**.",
+    },
+    "topup_service_error": {
+        "en":"I couldn't reach the Ko-fi payment service right now. Please try again shortly.","es":"No pude comunicarme con el servicio de pagos de Ko-fi en este momento. Inténtalo de nuevo en breve.","pt":"Não consegui acessar o serviço de pagamento do Ko-fi agora. Tente novamente em instantes.","fr":"Je n'ai pas pu joindre le service de paiement Ko-fi pour le moment. Veuillez réessayer dans quelques instants.","de":"Ich konnte den Ko-fi-Zahlungsdienst gerade nicht erreichen. Bitte versuche es in Kürze erneut.","ja":"現在Ko-fiの決済サービスに接続できませんでした。しばらくしてからもう一度お試しください。","ko":"현재 Ko-fi 결제 서비스에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.","zh":"目前无法连接 Ko-fi 支付服务。请稍后重试。","ru":"Сейчас не удалось связаться с платёжным сервисом Ko-fi. Повторите попытку немного позже.","ar":"تعذر الوصول إلى خدمة الدفع Ko-fi حاليًا. يرجى المحاولة مرة أخرى بعد قليل.","hi":"अभी Ko-fi भुगतान सेवा से संपर्क नहीं हो सका। कृपया थोड़ी देर बाद फिर प्रयास करें।","id":"Saat ini saya tidak dapat menghubungi layanan pembayaran Ko-fi. Silakan coba lagi sebentar lagi.",
+    },
+    "topup_heading": {
+        "en":"### Add Voicely Translate credit","es":"### Añadir créditos de Voicely Translate","pt":"### Adicionar créditos do Voicely Translate","fr":"### Ajouter des crédits Voicely Translate","de":"### Voicely-Translate-Credits hinzufügen","ja":"### Voicely Translateクレジットを追加","ko":"### Voicely Translate 크레딧 추가","zh":"### 添加 Voicely Translate 点数","ru":"### Добавить кредиты Voicely Translate","ar":"### إضافة رصيد Voicely Translate","hi":"### Voicely Translate क्रेडिट जोड़ें","id":"### Tambahkan kredit Voicely Translate",
+    },
+    "topup_code": {
+        "en":"Your server's top-up code is **`{code}`**.","es":"El código de recarga de tu servidor es **`{code}`**.","pt":"O código de recarga do seu servidor é **`{code}`**.","fr":"Le code de recharge de votre serveur est **`{code}`**.","de":"Der Aufladecode deines Servers lautet **`{code}`**.","ja":"このサーバーのチャージコードは **`{code}`** です。","ko":"이 서버의 충전 코드는 **`{code}`**입니다.","zh":"你的服务器充值代码为 **`{code}`**。","ru":"Код пополнения вашего сервера: **`{code}`**.","ar":"رمز شحن خادمك هو **`{code}`**.","hi":"आपके सर्वर का टॉप-अप कोड **`{code}`** है।","id":"Kode top-up server Anda adalah **`{code}`**.",
+    },
+    "topup_include_code": {
+        "en":"Include that exact code in the message with your Ko-fi payment.","es":"Incluye ese código exacto en el mensaje de tu pago de Ko-fi.","pt":"Inclua exatamente esse código na mensagem do seu pagamento pelo Ko-fi.","fr":"Incluez exactement ce code dans le message accompagnant votre paiement Ko-fi.","de":"Gib genau diesen Code in der Nachricht zu deiner Ko-fi-Zahlung an.","ja":"Ko-fiで支払う際のメッセージに、このコードを正確に入力してください。","ko":"Ko-fi 결제 메시지에 이 코드를 정확히 입력하세요.","zh":"请在 Ko-fi 付款附带的消息中填写完全相同的代码。","ru":"Укажите этот код без изменений в сообщении к платежу Ko-fi.","ar":"أدرج هذا الرمز كما هو تمامًا في الرسالة المرفقة بدفعتك عبر Ko-fi.","hi":"अपने Ko-fi भुगतान के साथ संदेश में यही कोड ठीक उसी तरह शामिल करें।","id":"Sertakan kode tersebut persis seperti itu dalam pesan pembayaran Ko-fi Anda.",
+    },
+    "topup_rate": {
+        "en":"Every **$1.00 USD adds 100 Voicely Credits** to this server.","es":"Cada **$1.00 USD añade 100 créditos de Voicely** a este servidor.","pt":"Cada **$1.00 USD adiciona 100 Créditos Voicely** a este servidor.","fr":"Chaque **1,00 $ USD ajoute 100 crédits Voicely** à ce serveur.","de":"Je **1,00 $ USD werden diesem Server 100 Voicely-Credits** hinzugefügt.","ja":"**$1.00 USDごとに100 Voicelyクレジット**がこのサーバーに追加されます。","ko":"**$1.00 USD마다 100 Voicely 크레딧**이 이 서버에 추가됩니다.","zh":"每 **$1.00 USD 可为此服务器添加 100 Voicely 点数**。","ru":"Каждый **$1.00 USD добавляет на этот сервер 100 кредитов Voicely**.","ar":"كل **$1.00 USD يضيف 100 رصيد Voicely** إلى هذا الخادم.","hi":"हर **$1.00 USD से इस सर्वर में 100 Voicely क्रेडिट** जुड़ते हैं।","id":"Setiap **$1.00 USD menambahkan 100 Kredit Voicely** ke server ini.",
+    },
+    "topup_after_payment": {
+        "en":"After payment, use `/balance` (or `/join`) and the bot will automatically pull in the new credit.","es":"Después del pago, usa `/balance` (o `/join`) y el bot añadirá automáticamente los nuevos créditos.","pt":"Após o pagamento, use `/balance` (ou `/join`) e o bot obterá automaticamente os novos créditos.","fr":"Après le paiement, utilisez `/balance` (ou `/join`) et le bot récupérera automatiquement les nouveaux crédits.","de":"Verwende nach der Zahlung `/balance` (oder `/join`), und der Bot übernimmt die neuen Credits automatisch.","ja":"支払い後に `/balance`（または `/join`）を使用すると、Botが新しいクレジットを自動的に反映します。","ko":"결제 후 `/balance`(또는 `/join`)을 사용하면 봇이 새 크레딧을 자동으로 반영합니다.","zh":"付款后使用 `/balance`（或 `/join`），机器人会自动获取新增点数。","ru":"После оплаты используйте `/balance` (или `/join`), и бот автоматически добавит новые кредиты.","ar":"بعد الدفع، استخدم `/balance` (أو `/join`) وسيقوم البوت تلقائيًا بإضافة الرصيد الجديد.","hi":"भुगतान के बाद `/balance` (या `/join`) का उपयोग करें और बॉट नए क्रेडिट को अपने आप जोड़ देगा।","id":"Setelah pembayaran, gunakan `/balance` (atau `/join`) dan bot akan otomatis mengambil kredit baru.",
+    },
+    "original_label": {
+        "en":"Original","es":"Original","pt":"Original","fr":"Original","de":"Original","ja":"原文","ko":"원문","zh":"原文","ru":"Оригинал","ar":"الأصل","hi":"मूल","id":"Asli",
+    },
+
     "topup_separate_order": {
         "en":"**Important:** Please purchase Voicely Translate Credits separately from other items in the same order.",
         "es":"**Importante:** Compra los créditos de Voicely Translate por separado de otros artículos en el mismo pedido.",
@@ -2450,11 +2521,7 @@ class TranslationCommands(commands.Cog):
 
             if not requested_languages:
                 await interaction.response.send_message(
-                    (
-                        "No default languages have been set for this server. "
-                        "Specify languages with `/join`, or ask a server "
-                        "administrator to set them with `/defaultlanguages`."
-                    ),
+                    tr(interaction, "no_default_languages"),
                     ephemeral=True,
                 )
                 return
@@ -2652,9 +2719,9 @@ class TranslationCommands(commands.Cog):
         interaction: discord.Interaction,
     ) -> None:
         lines = [
-            "**Common language tags**",
-            "These are common language tags you can use with `/join`, `/add`, and `/remove`.",
-            "Voicely Translate is not limited to this list—you can enter other valid BCP 47 language tags as well.",
+            tr(interaction, "languages_heading"),
+            tr(interaction, "languages_intro"),
+            tr(interaction, "languages_not_limited"),
             "",
         ]
 
@@ -2663,7 +2730,7 @@ class TranslationCommands(commands.Cog):
 
         lines.extend([
             "",
-            "**Common regional/script tags**",
+            tr(interaction, "regional_tags_heading"),
         ])
 
         for tag, name in REGIONAL_LANGUAGE_TAGS.items():
@@ -2671,7 +2738,7 @@ class TranslationCommands(commands.Cog):
 
         lines.extend([
             "",
-            "If a language is not listed above, you can still try its BCP 47 language tag.",
+            tr(interaction, "languages_try_other"),
         ])
 
         chunks = split_discord_message("\n".join(lines))
@@ -2707,10 +2774,7 @@ class TranslationCommands(commands.Cog):
 
         if not KOFI_WORKER_URL or not KOFI_BOT_API_SECRET:
             await interaction.response.send_message(
-                (
-                    "Ko-fi top-ups have not been configured by the bot owner yet. "
-                    f"This server's persistent top-up code is **`{code}`**."
-                ),
+                tr(interaction, "topup_not_configured", code=code),
                 ephemeral=True,
             )
             return
@@ -2725,20 +2789,17 @@ class TranslationCommands(commands.Cog):
             )
 
             await interaction.response.send_message(
-                (
-                    "I couldn't reach the Ko-fi payment service right now. "
-                    "Please try again shortly."
-                ),
+                tr(interaction, "topup_service_error"),
                 ephemeral=True,
             )
             return
 
         lines = [
-            "### Add Voicely Translate credit",
-            f"Your server's top-up code is **`{code}`**.",
+            tr(interaction, "topup_heading"),
+            tr(interaction, "topup_code", code=code),
             "",
-            "Include that exact code in the message with your Ko-fi payment.",
-            "Every **$1.00 USD adds 100 Voicely Credits** to this server.",
+            tr(interaction, "topup_include_code"),
+            tr(interaction, "topup_rate"),
             "",
             tr(interaction, "topup_separate_order"),
         ]
@@ -2751,8 +2812,7 @@ class TranslationCommands(commands.Cog):
 
         lines.extend([
             "",
-            "After payment, use `/balance` (or `/join`) and the bot will "
-            "automatically pull in the new credit.",
+            tr(interaction, "topup_after_payment"),
         ])
 
         await interaction.response.send_message(
@@ -2858,10 +2918,10 @@ class TranslationCommands(commands.Cog):
         )
 
         await interaction.response.send_message(
-            (
-                "Default translation languages set to: **"
-                + ", ".join(requested_languages)
-                + "**."
+            tr(
+                interaction,
+                "default_languages_set",
+                languages=", ".join(requested_languages),
             ),
             ephemeral=True,
         )

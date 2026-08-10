@@ -190,7 +190,7 @@ Voicely Translate menggunakan sistem kredit untuk membayar layanan transkripsi d
 
 **100 Voicely Credits = $1.00 USD.**
 
-Server baru saat ini menerima **50 kredit uji coba gratis**. Jumlah tersebut cukup untuk sekitar **500 pesan suara biasa**, meskipun penggunaan sebenarnya dapat bervariasi.
+Server baru saat ini menerima **50 kredit uji coba gratis**. Jumlah tersebut cukup untuk sekitar **1.000 pesan suara berdurasi 5 detik**, meskipun penggunaan sebenarnya dapat bervariasi.
 
 Kredit digunakan saat ucapan ditranskripsikan dan diterjemahkan. Jumlah yang digunakan dapat berbeda tergantung pada seberapa banyak orang berbicara dan berapa banyak terjemahan yang diminta.
 

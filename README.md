@@ -190,7 +190,7 @@ Voicely Translate uses a credit system to pay for the transcription and translat
 
 **100 Voicely Credits = $1.00 USD.**
 
-New servers currently receive **50 free trial credits**. That is enough for approximately **500 typical voice messages**, although actual usage varies.
+New servers currently receive **50 free trial credits**. That is enough for approximately **1000 5-second voice messages**, although actual usage varies.
 
 Credits are consumed as speech is transcribed and translated. The amount used can vary depending on how much people speak and how many translations are requested.
 

@@ -190,7 +190,7 @@ O Voicely Translate usa um sistema de créditos para pagar pelos serviços de tr
 
 **100 Voicely Credits = $1.00 USD.**
 
-Novos servidores atualmente recebem **50 créditos de teste gratuitos**. Isso é suficiente para aproximadamente **500 mensagens de voz típicas**, embora o uso real possa variar.
+Novos servidores atualmente recebem **50 créditos de teste gratuitos**. Isso é suficiente para aproximadamente **1.000 mensagens de voz de 5 segundos**, embora o uso real possa variar.
 
 Os créditos são consumidos à medida que a fala é transcrita e traduzida. A quantidade usada pode variar dependendo de quanto as pessoas falam e de quantas traduções são solicitadas.
 

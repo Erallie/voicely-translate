@@ -2986,7 +2986,7 @@ class TranslationCommands(commands.Cog):
 
         await interaction.followup.send(
             tr(interaction, "left"),
-            ephemeral=True,
+            ephemeral=False,
         )
 
 

@@ -245,6 +245,18 @@ Voicely Translate will automatically check for newly purchased credit.
 
 The `/topup` command requires the **Administrator** permission.
 
+## Estimated Monthly Usage
+
+The number of credits a server uses depends on how much people speak and how many translation languages are enabled. The table below provides approximate monthly usage based on typical 5-second voice messages. Actual usage may vary.
+
+| Server Usage | Approx. 5-Second Messages/Month | Credits/Month |
+| --- | ---: | ---: |
+| Barely Used / Testing | 0–1,000 | 0–50 |
+| Light | 1,000–3,000 | 50–150 |
+| Typical Active | 3,000–10,000 | 150–500 |
+| Heavy | 10,000–30,000 | 500–1,500 |
+| Very Heavy | 30,000–100,000 | 1,500–5,000 |
+
 ## How Translation Works
 
 When someone speaks in the voice channel, Voicely Translate processes that person's speech independently.

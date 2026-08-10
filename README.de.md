@@ -245,6 +245,18 @@ Voicely Translate prüft automatisch auf neu gekaufte Credits.
 
 Der Befehl `/topup` erfordert die Berechtigung **Administrator**.
 
+## Geschätzte monatliche Nutzung
+
+Wie viele Credits ein Server verbraucht, hängt davon ab, wie viel gesprochen wird und wie viele Übersetzungssprachen aktiviert sind. Die folgende Tabelle zeigt eine Schätzung der monatlichen Nutzung auf Grundlage typischer 5-sekündiger Sprachnachrichten. Die tatsächliche Nutzung kann variieren.
+
+| Servernutzung | Ca. 5-Sekunden-Sprachnachrichten/Monat | Credits/Monat |
+| --- | ---: | ---: |
+| Kaum genutzt / Tests | 0–1.000 | 0–50 |
+| Gering | 1.000–3.000 | 50–150 |
+| Typisch aktiv | 3.000–10.000 | 150–500 |
+| Intensiv | 10.000–30.000 | 500–1.500 |
+| Sehr intensiv | 30.000–100.000 | 1.500–5.000 |
+
 ## So funktioniert die Übersetzung
 
 Wenn jemand im Sprachkanal spricht, verarbeitet Voicely Translate die Sprache dieser Person unabhängig.

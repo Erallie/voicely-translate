@@ -245,6 +245,18 @@ O Voicely Translate verificará automaticamente os créditos recém-comprados.
 
 O comando `/topup` requer a permissão de **Administrador**.
 
+## Uso mensal estimado
+
+A quantidade de créditos que um servidor utiliza depende de quanto as pessoas falam e de quantos idiomas de tradução estão ativados. A tabela abaixo apresenta uma estimativa do uso mensal com base em mensagens de voz típicas de 5 segundos. O uso real pode variar.
+
+| Uso do servidor | Aprox. mensagens de 5 segundos/mês | Créditos/mês |
+| --- | ---: | ---: |
+| Quase sem uso / Testes | 0–1.000 | 0–50 |
+| Leve | 1.000–3.000 | 50–150 |
+| Atividade típica | 3.000–10.000 | 150–500 |
+| Intenso | 10.000–30.000 | 500–1.500 |
+| Muito intenso | 30.000–100.000 | 1.500–5.000 |
+
 ## Como a tradução funciona
 
 Quando alguém fala no canal de voz, o Voicely Translate processa a fala dessa pessoa de forma independente.

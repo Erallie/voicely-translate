@@ -32,7 +32,7 @@ DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 GUILD_ID = int(os.environ["GUILD_ID"])
 
-TRANSCRIPTION_MODEL = "gpt-4o-transcribe"
+TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe"
 TRANSLATION_MODEL = "gpt-4o-mini"
 
 # Discord's decoded PCM audio is 48 kHz, stereo, signed 16-bit PCM.
@@ -86,8 +86,8 @@ UNLIMITED_CREDIT_GUILD_IDS = {
 
 # Current OpenAI list prices used for usage accounting.
 # Costs are stored as integer micro-dollars to avoid floating-point drift.
-TRANSCRIPTION_INPUT_USD_PER_MILLION = 2.50
-TRANSCRIPTION_OUTPUT_USD_PER_MILLION = 10.00
+TRANSCRIPTION_INPUT_USD_PER_MILLION = 1.25
+TRANSCRIPTION_OUTPUT_USD_PER_MILLION = 5.00
 TRANSLATION_INPUT_USD_PER_MILLION = 0.15
 TRANSLATION_OUTPUT_USD_PER_MILLION = 0.60
 

@@ -2285,7 +2285,7 @@ def localized_balance(interaction, available, trial, paid) -> str:
         "hi":("उपलब्ध","मुफ्त ट्रायल","खरीदे गए","क्रेडिट"),"id":("Tersedia","Uji coba gratis","Dibeli","kredit"),
     }
     l = labels[ui_language_from_locale(interaction.locale)]
-    return f"**{l[0]}:** {format_credits(available)} {l[3]}\\n**{l[1]}:** {format_credits(trial)} {l[3]}\\n**{l[2]}:** {format_credits(paid)} {l[3]}\\n*(100 {l[3]} = $1.00 USD)*"
+    return f"**{l[0]}:** {format_credits(available)} {l[3]}\n**{l[1]}:** {format_credits(trial)} {l[3]}\n**{l[2]}:** {format_credits(paid)} {l[3]}\n*(100 {l[3]} = $1.00 USD)*"
 
 def localized_usage(interaction, state) -> str:
     labels = {
@@ -2298,7 +2298,7 @@ def localized_usage(interaction, state) -> str:
     }
     l = labels[ui_language_from_locale(interaction.locale)]
     vals = [int(state["total_used_microusd"]), int(state["transcription_used_microusd"]), int(state["translation_used_microusd"]), int(state["total_purchased_microusd"])]
-    return "\\n".join([f"**{l[i]}:** {format_credits(vals[i])} {l[4]}" for i in range(4)]) + f"\\n*(100 {l[4]} = $1.00 USD)*"
+    return "\n".join([f"**{l[i]}:** {format_credits(vals[i])} {l[4]}" for i in range(4)]) + f"\n*(100 {l[4]} = $1.00 USD)*"
 
 class TranslationCommands(commands.Cog):
     def __init__(self, bot_instance: commands.Bot):

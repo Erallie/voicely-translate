@@ -190,7 +190,7 @@ Voicely Translate verwendet ein Kreditsystem, um die für die Verarbeitung von S
 
 **100 Voicely Credits = $1.00 USD.**
 
-Neue Server erhalten derzeit **50 kostenlose Test-Credits**.
+Neue Server erhalten derzeit **50 kostenlose Test-Credits**. Das reicht für ungefähr **500 typische Sprachnachrichten**, wobei die tatsächliche Nutzung variieren kann.
 
 Credits werden verbraucht, während Sprache transkribiert und übersetzt wird. Der Verbrauch kann davon abhängen, wie viel gesprochen wird und wie viele Übersetzungen angefordert werden.
 

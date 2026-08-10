@@ -403,6 +403,7 @@ def initialize_database() -> None:
             "total_used_microusd": "INTEGER NOT NULL DEFAULT 0",
             "transcription_used_microusd": "INTEGER NOT NULL DEFAULT 0",
             "translation_used_microusd": "INTEGER NOT NULL DEFAULT 0",
+            "default_languages": "TEXT",
         }
 
         for column_name, definition in migrations.items():
@@ -483,6 +484,82 @@ def set_idle_timeout_seconds(
             (int(timeout_seconds), guild_id),
         )
         connection.commit()
+
+def get_default_languages(guild_id: int) -> list[str]:
+    ensure_guild_account(guild_id)
+
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        row = connection.execute(
+            """
+            SELECT default_languages
+            FROM guild_settings
+            WHERE guild_id = ?
+            """,
+            (guild_id,),
+        ).fetchone()
+
+    if row is None or not row[0]:
+        return []
+
+    try:
+        stored_languages = json.loads(str(row[0]))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return []
+
+    if not isinstance(stored_languages, list):
+        return []
+
+    languages = []
+
+    for value in stored_languages:
+        language = normalize_language_tag(str(value))
+
+        if (
+            language
+            and not any(
+                existing.casefold() == language.casefold()
+                for existing in languages
+            )
+        ):
+            languages.append(language)
+
+    return languages
+
+
+def set_default_languages(
+    guild_id: int,
+    languages: list[str],
+) -> None:
+    ensure_guild_account(guild_id)
+
+    normalized_languages = []
+
+    for value in languages:
+        language = normalize_language_tag(value)
+
+        if (
+            language
+            and not any(
+                existing.casefold() == language.casefold()
+                for existing in normalized_languages
+            )
+        ):
+            normalized_languages.append(language)
+
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        connection.execute(
+            """
+            UPDATE guild_settings
+            SET default_languages = ?
+            WHERE guild_id = ?
+            """,
+            (
+                json.dumps(normalized_languages, ensure_ascii=False),
+                guild_id,
+            ),
+        )
+        connection.commit()
+
 
 def _generate_topup_code() -> str:
     alphabet = string.ascii_uppercase + string.digits
@@ -2309,12 +2386,15 @@ class TranslationCommands(commands.Cog):
         description="Join your voice channel and start translating.",
     )
     @app_commands.describe(
-        languages="Comma-separated language tags, e.g. en, ja, es, pt-BR"
+        languages=(
+            "Optional comma-separated language tags; "
+            "uses the server defaults when omitted"
+        )
     )
     async def join(
         self,
         interaction: discord.Interaction,
-        languages: str,
+        languages: str | None = None,
     ) -> None:
         if interaction.guild is None or interaction.guild_id is None:
             await interaction.response.send_message(
@@ -2363,14 +2443,30 @@ class TranslationCommands(commands.Cog):
             )
             return
 
-        requested_languages = parse_languages(languages)
-
-        if not requested_languages:
-            await interaction.response.send_message(
-                tr(interaction, "provide_language"),
-                ephemeral=True,
+        if languages is None or not languages.strip():
+            requested_languages = get_default_languages(
+                interaction.guild_id
             )
-            return
+
+            if not requested_languages:
+                await interaction.response.send_message(
+                    (
+                        "No default languages have been set for this server. "
+                        "Specify languages with `/join`, or ask a server "
+                        "administrator to set them with `/defaultlanguages`."
+                    ),
+                    ephemeral=True,
+                )
+                return
+        else:
+            requested_languages = parse_languages(languages)
+
+            if not requested_languages:
+                await interaction.response.send_message(
+                    tr(interaction, "provide_language"),
+                    ephemeral=True,
+                )
+                return
 
         existing = sessions.get(interaction.guild_id)
 
@@ -2724,6 +2820,49 @@ class TranslationCommands(commands.Cog):
 
         await interaction.response.send_message(
             localized_usage(interaction, state),
+            ephemeral=True,
+        )
+
+    @app_commands.command(
+        name="defaultlanguages",
+        description="Set the languages used by /join when none are specified.",
+    )
+    @app_commands.describe(
+        languages="Comma-separated language tags, e.g. en, ja, es, pt-BR"
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def defaultlanguages(
+        self,
+        interaction: discord.Interaction,
+        languages: str,
+    ) -> None:
+        if interaction.guild_id is None:
+            await interaction.response.send_message(
+                tr(interaction, "server_only"),
+                ephemeral=True,
+            )
+            return
+
+        requested_languages = parse_languages(languages)
+
+        if not requested_languages:
+            await interaction.response.send_message(
+                tr(interaction, "provide_language"),
+                ephemeral=True,
+            )
+            return
+
+        set_default_languages(
+            interaction.guild_id,
+            requested_languages,
+        )
+
+        await interaction.response.send_message(
+            (
+                "Default translation languages set to: **"
+                + ", ".join(requested_languages)
+                + "**."
+            ),
             ephemeral=True,
         )
 

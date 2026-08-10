@@ -249,13 +249,13 @@ Perintah `/topup` memerlukan izin **Administrator**.
 
 Jumlah kredit yang digunakan server bergantung pada seberapa banyak orang berbicara dan berapa banyak bahasa terjemahan yang diaktifkan. Tabel di bawah memberikan perkiraan penggunaan bulanan berdasarkan pesan suara biasa berdurasi 5 detik. Penggunaan sebenarnya dapat bervariasi.
 
-| Penggunaan server | Perkiraan pesan suara 5 detik/bulan | Kredit/bulan |
-| --- | ---: | ---: |
-| Hampir tidak digunakan / Pengujian | 0–1.000 | 0–50 |
-| Ringan | 1.000–3.000 | 50–150 |
-| Aktif secara umum | 3.000–10.000 | 150–500 |
-| Berat | 10.000–30.000 | 500–1.500 |
-| Sangat berat | 30.000–100.000 | 1.500–5.000 |
+| Penggunaan server | Perkiraan pesan suara 5 detik/bulan | Kredit/bulan | Yang Anda bayar/bulan |
+| --- | ---: | ---: | ---: |
+| Hampir tidak digunakan / Pengujian | 0–1.000 | 0–50 | $0–$0.50 |
+| Ringan | 1.000–3.000 | 50–150 | $0.50–$1.50 |
+| Aktif secara umum | 3.000–10.000 | 150–500 | $1.50–$5.00 |
+| Berat | 10.000–30.000 | 500–1.500 | $5.00–$15.00 |
+| Sangat berat | 30.000–100.000 | 1.500–5.000 | $15.00–$50.00 |
 
 ## Cara kerja terjemahan
 

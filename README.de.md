@@ -249,13 +249,13 @@ Der Befehl `/topup` erfordert die Berechtigung **Administrator**.
 
 Wie viele Credits ein Server verbraucht, hängt davon ab, wie viel gesprochen wird und wie viele Übersetzungssprachen aktiviert sind. Die folgende Tabelle zeigt eine Schätzung der monatlichen Nutzung auf Grundlage typischer 5-sekündiger Sprachnachrichten. Die tatsächliche Nutzung kann variieren.
 
-| Servernutzung | Ca. 5-Sekunden-Sprachnachrichten/Monat | Credits/Monat |
-| --- | ---: | ---: |
-| Kaum genutzt / Tests | 0–1.000 | 0–50 |
-| Gering | 1.000–3.000 | 50–150 |
-| Typisch aktiv | 3.000–10.000 | 150–500 |
-| Intensiv | 10.000–30.000 | 500–1.500 |
-| Sehr intensiv | 30.000–100.000 | 1.500–5.000 |
+| Servernutzung | Ca. 5-Sekunden-Sprachnachrichten/Monat | Credits/Monat | Was du pro Monat zahlst |
+| --- | ---: | ---: | ---: |
+| Kaum genutzt / Tests | 0–1.000 | 0–50 | $0–$0.50 |
+| Gering | 1.000–3.000 | 50–150 | $0.50–$1.50 |
+| Typisch aktiv | 3.000–10.000 | 150–500 | $1.50–$5.00 |
+| Intensiv | 10.000–30.000 | 500–1.500 | $5.00–$15.00 |
+| Sehr intensiv | 30.000–100.000 | 1.500–5.000 | $15.00–$50.00 |
 
 ## So funktioniert die Übersetzung
 

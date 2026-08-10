@@ -249,13 +249,13 @@ The `/topup` command requires the **Administrator** permission.
 
 The number of credits a server uses depends on how much people speak and how many translation languages are enabled. The table below provides approximate monthly usage based on typical 5-second voice messages. Actual usage may vary.
 
-| Server Usage | Approx. 5-Second Messages/Month | Credits/Month |
-| --- | ---: | ---: |
-| Barely Used / Testing | 0–1,000 | 0–50 |
-| Light | 1,000–3,000 | 50–150 |
-| Typical Active | 3,000–10,000 | 150–500 |
-| Heavy | 10,000–30,000 | 500–1,500 |
-| Very Heavy | 30,000–100,000 | 1,500–5,000 |
+| Server Usage | Approx. 5-Second Messages/Month | Credits/Month | What You Pay/Month |
+| --- | ---: | ---: | ---: |
+| Barely Used / Testing | 0–1,000 | 0–50 | $0–$0.50 |
+| Light | 1,000–3,000 | 50–150 | $0.50–$1.50 |
+| Typical Active | 3,000–10,000 | 150–500 | $1.50–$5.00 |
+| Heavy | 10,000–30,000 | 500–1,500 | $5.00–$15.00 |
+| Very Heavy | 30,000–100,000 | 1,500–5,000 | $15.00–$50.00 |
 
 ## How Translation Works
 

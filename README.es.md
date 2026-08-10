@@ -254,13 +254,13 @@ El comando `/topup` requiere el permiso de **Administrador**.
 
 La cantidad de créditos que utiliza un servidor depende de cuánto hablen los usuarios y de cuántos idiomas de traducción estén habilitados. La siguiente tabla muestra una estimación del uso mensual basada en mensajes de voz típicos de 5 segundos. El uso real puede variar.
 
-| Uso del servidor | Aprox. mensajes de 5 segundos/mes | Créditos/mes |
-| --- | ---: | ---: |
-| Uso mínimo / Pruebas | 0–1.000 | 0–50 |
-| Ligero | 1.000–3.000 | 50–150 |
-| Actividad típica | 3.000–10.000 | 150–500 |
-| Intenso | 10.000–30.000 | 500–1.500 |
-| Muy intenso | 30.000–100.000 | 1.500–5.000 |
+| Uso del servidor | Aprox. mensajes de 5 segundos/mes | Créditos/mes | Lo que pagas/mes |
+| --- | ---: | ---: | ---: |
+| Uso mínimo / Pruebas | 0–1.000 | 0–50 | $0–$0.50 |
+| Ligero | 1.000–3.000 | 50–150 | $0.50–$1.50 |
+| Actividad típica | 3.000–10.000 | 150–500 | $1.50–$5.00 |
+| Intenso | 10.000–30.000 | 500–1.500 | $5.00–$15.00 |
+| Muy intenso | 30.000–100.000 | 1.500–5.000 | $15.00–$50.00 |
 
 ## Cómo funciona la traducción
 

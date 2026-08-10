@@ -10,6 +10,8 @@
 
 ---
 
+[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [Русский](README.ru.md) | [العربية](README.ar.md) | [हिन्दी](README.hi.md) | [Bahasa Indonesia](README.id.md)
+
 ## 사용자 가이드
 
 Voicely Translate는 Discord 음성 채널의 대화를 자동으로 받아쓰고 여러 언어로 번역하는 봇입니다. 각 화자를 개별적으로 처리하므로 여러 사람이 겹쳐 말하는 상황도 지원하며, 결과는 해당 음성 채널의 사이드 채팅에 게시됩니다.

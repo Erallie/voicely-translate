@@ -10,6 +10,8 @@
 
 ---
 
+[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [Русский](README.ru.md) | [العربية](README.ar.md) | [हिन्दी](README.hi.md) | [Bahasa Indonesia](README.id.md)
+
 Voicely Translate es un bot de Discord que transcribe y traduce automáticamente conversaciones de canales de voz.
 
 Cuando está activo, escucha a cada hablante por separado, transcribe lo que dice y publica la transcripción original junto con las traducciones en el chat lateral del canal de voz. Se pueden activar varios idiomas a la vez y añadirlos o quitarlos durante la sesión.

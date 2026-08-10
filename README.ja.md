@@ -10,6 +10,8 @@
 
 ---
 
+[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [Русский](README.ru.md) | [العربية](README.ar.md) | [हिन्दी](README.hi.md) | [Bahasa Indonesia](README.id.md)
+
 ## ユーザーガイド
 
 Voicely Translateは、Discordのボイスチャンネルでの会話を自動的に文字起こしし、複数の言語へ翻訳するボットです。話者ごとに音声を個別処理するため、複数人が重なって話した場合にも対応でき、結果はボイスチャンネルのサイドチャットへ投稿されます。

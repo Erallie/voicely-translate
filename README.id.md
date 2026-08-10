@@ -10,6 +10,8 @@
 
 ---
 
+[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [Русский](README.ru.md) | [العربية](README.ar.md) | [हिन्दी](README.hi.md) | [Bahasa Indonesia](README.id.md)
+
 ## Panduan pengguna
 
 Voicely Translate adalah bot Discord yang secara otomatis mentranskripsikan percakapan di kanal suara dan menerjemahkannya ke beberapa bahasa. Setiap pembicara diproses secara terpisah sehingga percakapan yang tumpang tindih dapat ditangani, dan hasilnya diposting di chat samping kanal suara.

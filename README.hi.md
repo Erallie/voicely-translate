@@ -10,6 +10,8 @@
 
 ---
 
+[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [Русский](README.ru.md) | [العربية](README.ar.md) | [हिन्दी](README.hi.md) | [Bahasa Indonesia](README.id.md)
+
 ## उपयोगकर्ता मार्गदर्शिका
 
 Voicely Translate एक Discord बॉट है जो वॉइस चैनलों की बातचीत को अपने-आप ट्रांसक्राइब करता है और कई भाषाओं में अनुवाद करता है। हर वक्ता को अलग से प्रोसेस किया जाता है, इसलिए एक साथ बोलने वाले लोगों को भी संभाला जा सकता है, और परिणाम वॉइस चैनल की साइड चैट में पोस्ट होते हैं।

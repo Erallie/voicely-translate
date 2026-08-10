@@ -10,6 +10,8 @@
 
 ---
 
+[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [Français](README.fr.md) | [Deutsch](README.de.md) | [日本語](README.ja.md) | [한국어](README.ko.md) | [简体中文](README.zh-CN.md) | [Русский](README.ru.md) | [العربية](README.ar.md) | [हिन्दी](README.hi.md) | [Bahasa Indonesia](README.id.md)
+
 ## دليل المستخدم
 
 Voicely Translate هو بوت Discord يقوم تلقائيًا بنسخ المحادثات في القنوات الصوتية وترجمتها إلى عدة لغات. تتم معالجة كل متحدث بشكل مستقل، لذلك يمكنه التعامل مع تداخل الكلام، وتُنشر النتائج في الدردشة الجانبية للقناة الصوتية.

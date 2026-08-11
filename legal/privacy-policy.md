@@ -1,6 +1,6 @@
 # Voicely Translate Privacy Policy
 
-**Last Updated: August 9, 2026**
+**Last Updated: August 10, 2026**
 
 This Privacy Policy explains how information is handled when you use the
 Voicely Translate Discord bot ("Voicely Translate," the "Bot," or the
@@ -30,8 +30,8 @@ Depending on how the Bot is used, Voicely Translate may process:
     functionality.
 -   Discord display information needed to attribute a transcription or
     translation to the appropriate speaker.
--   Server configuration, such as selected languages and idle-timeout
-    settings.
+-   Server configuration, such as selected/default translation languages and
+    idle-timeout settings.
 
 ### Voice Audio
 
@@ -54,9 +54,10 @@ permissions, and deletion behavior applies to that message.
 
 The Service may process and store the following information to track usage, manage credits, and process credit purchases:
 
-- Purchased and promotional credit balances.
-- Usage amounts and calculated usage costs.
-- Trial usage.
+- Purchased and promotional/free-trial credit balances.
+- Total usage amounts and calculated usage costs.
+- Separate transcription and translation usage totals.
+- Trial usage and remaining trial balance.
 - Discord server IDs.
 - Server-specific `VT-XXXXXX` top-up codes.
 - Ko-fi transaction or message IDs used to identify payments and prevent duplicate credit activation.
@@ -174,12 +175,15 @@ Certain information must persist so the Service can function between
 restarts. This may include:
 
 -   Discord server IDs.
--   Server configuration.
--   Credit balances.
--   Trial-usage information.
--   Usage totals.
--   Server top-up codes.
--   Payment-event identifiers.
+-   Server configuration, including idle-timeout settings and saved default
+    translation languages.
+-   Remaining free-trial credit balances.
+-   Purchased credit balances.
+-   Total purchased-credit amounts.
+-   Total calculated usage.
+-   Separate transcription and translation usage totals.
+-   Server-specific `VT-XXXXXX` top-up codes.
+-   Payment-event identifiers and associated purchase amounts.
 -   Information required to prevent duplicate credit claims.
 
 This information may be stored locally by the Bot and/or in
@@ -226,8 +230,10 @@ services required to provide transcription and translation.
 
 ## 11. Data Retention
 
-Persistent server, configuration, credit, usage, and
-transaction-deduplication information may be retained for as long as
+Persistent server, configuration (including saved default languages and
+idle-timeout settings), credit balances, purchase totals, usage totals,
+transcription/translation usage breakdowns, and transaction-deduplication
+information may be retained for as long as
 reasonably necessary to operate the Service, maintain accurate balances,
 prevent duplicate credits, resolve disputes, comply with legal
 obligations, and protect against abuse.

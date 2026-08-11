@@ -2975,7 +2975,7 @@ class TranslationCommands(commands.Cog):
         if session is None:
             return
 
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=False)
 
         guild_id = interaction.guild_id
 

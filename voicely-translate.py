@@ -2580,8 +2580,30 @@ class TranslationCommands(commands.Cog):
             join_message = tr(interaction, "join", channel=voice_channel.name, languages=languages_text)
 
             voicely_text_bot_id = 1290741552158609419
+            voicely_text_member = interaction.guild.get_member(
+                voicely_text_bot_id
+            )
 
-            if interaction.guild.get_member(voicely_text_bot_id) is None:
+            # get_member() only checks discord.py's local member cache.
+            # If Voicely Text is not cached, confirm through Discord's API
+            # before deciding that the bot is not installed.
+            if voicely_text_member is None:
+                try:
+                    voicely_text_member = await interaction.guild.fetch_member(
+                        voicely_text_bot_id
+                    )
+                except discord.NotFound:
+                    voicely_text_member = None
+                except discord.HTTPException as error:
+                    # If Discord cannot complete the lookup, avoid incorrectly
+                    # advertising Voicely Text as missing.
+                    print(
+                        f"[VOICE] Could not verify whether Voicely Text is "
+                        f"installed in guild {interaction.guild_id}: {error!r}"
+                    )
+                    voicely_text_member = None
+
+            if voicely_text_member is None:
                 join_message += "\n\n" + tr(interaction, "voicely_text")
 
             await interaction.followup.send(

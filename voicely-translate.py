@@ -1384,7 +1384,7 @@ class TranslationSession:
                 "do not translate, localize, normalize, or replace them with similar-sounding ordinary words. "
                 "Preserve the speaker's actual words, fillers, hesitation sounds, repetitions, and incomplete phrases. "
                 "Use the surrounding speech for context when deciding between similar-sounding words, "
-                "and favor sentences and phrases that make sense as something someone would naturally say, "
+                "and prefer the interpretation that forms a coherent, natural utterance when the audio is ambiguous, "
                 "but do not invent words that are not clearly spoken. "
                 "If the entire audio contains no spoken words and consists only of nonverbal sounds, "
                 "such as laughter, grunting, sighing, humming, or hesitation sounds like hmm, uh, or um, "

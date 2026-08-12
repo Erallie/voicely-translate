@@ -1388,7 +1388,7 @@ class TranslationSession:
                 "over changing it into a similar-sounding ordinary word. "
                 "Do not change a sound into a word merely because that word exists in the spoken language. "
                 "Preserve the speaker's actual words, fillers, hesitation sounds, repetitions, and incomplete phrases. "
-                "Use the surrounding speech for context when deciding between similar-sounding words, "
+                "Use the surrounding speech for context when deciding between similar-sounding words, and favor sentences and phrases that make sense as something someone would say,"
                 "but do not invent words that are not clearly spoken. "
                 "If the entire audio contains no spoken words and consists only of nonverbal sounds, "
                 "such as laughter, giggling, chuckling, grunting, groaning, sighing, humming, "

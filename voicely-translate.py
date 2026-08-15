@@ -2689,13 +2689,13 @@ class TranslationCommands(commands.Cog):
 
             session.update_idle_timeout()
 
-            languages_text = ", ".join(requested_languages)
+            languages_text = "`, `".join(requested_languages)
 
             join_message = tr(
                 interaction,
                 "join",
                 channel=voice_channel.name,
-                languages=languages_text,
+                languages=f"`{languages_text}`",
             )
 
             show_trial_notice = should_show_trial_notice(

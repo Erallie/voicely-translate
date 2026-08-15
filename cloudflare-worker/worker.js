@@ -350,47 +350,103 @@ async function processKofiPayment(payload, env) {
     };
 }
 
-async function forwardWebhook(rawBody, contentType, env) {
-    if (!env.EXISTING_WEBHOOK_URL) {
-        console.warn(
-            "EXISTING_WEBHOOK_URL is not configured; webhook was not forwarded."
-        );
+async function forwardToWebhook(
+    name,
+    url,
+    rawBody,
+    contentType,
+) {
+    if (!url) {
+        console.warn(`${name} webhook is not configured; skipping.`);
 
         return {
+            name,
             forwarded: false,
-            reason: "EXISTING_WEBHOOK_URL is not configured.",
+            reason: "Webhook is not configured.",
         };
     }
 
-    const response = await fetch(env.EXISTING_WEBHOOK_URL, {
-        method: "POST",
-        headers: {
-            "content-type": contentType || "application/x-www-form-urlencoded",
-        },
-        body: rawBody,
-    });
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "content-type": (
+                    contentType
+                    || "application/x-www-form-urlencoded"
+                ),
+            },
+            body: rawBody,
+        });
 
-    const responseText = await response.text();
+        const responseText = await response.text();
 
-    if (!response.ok) {
-        console.error(
-            `Existing webhook returned HTTP ${response.status}: ${responseText}`
+        if (!response.ok) {
+            console.error(
+                `${name} webhook returned HTTP ${response.status}: `
+                + responseText
+            );
+
+            return {
+                name,
+                forwarded: false,
+                status: response.status,
+            };
+        }
+
+        console.log(
+            `Forwarded Ko-fi webhook to ${name}; HTTP ${response.status}.`
         );
 
         return {
-            forwarded: false,
+            name,
+            forwarded: true,
             status: response.status,
         };
+    } catch (error) {
+        console.error(
+            `Could not forward Ko-fi webhook to ${name}:`,
+            error,
+        );
+
+        return {
+            name,
+            forwarded: false,
+            error: error instanceof Error ? error.message : String(error),
+        };
+    }
+}
+
+
+async function forwardWebhooks(rawBody, contentType, env) {
+    if (!env.SOCIAL_STREAM_SESSION_ID) {
+        console.warn(
+            "SOCIAL_STREAM_SESSION_ID is not configured; "
+            + "Social Stream Ninja forwarding will be skipped."
+        );
     }
 
-    console.log(
-        `Forwarded Ko-fi webhook successfully; HTTP ${response.status}.`
-    );
+    const socialStreamUrl = env.SOCIAL_STREAM_SESSION_ID
+        ? (
+            "https://io.socialstream.ninja/"
+            + encodeURIComponent(env.SOCIAL_STREAM_SESSION_ID)
+            + "/kofi"
+        )
+        : "";
 
-    return {
-        forwarded: true,
-        status: response.status,
-    };
+    return Promise.all([
+        forwardToWebhook(
+            "existing destination",
+            env.EXISTING_WEBHOOK_URL,
+            rawBody,
+            contentType,
+        ),
+        forwardToWebhook(
+            "Social Stream Ninja",
+            socialStreamUrl,
+            rawBody,
+            contentType,
+        ),
+    ]);
 }
 
 async function handleKofiWebhook(request, env) {
@@ -452,27 +508,16 @@ async function handleKofiWebhook(request, env) {
         }, 500);
     }
 
-    let forwardResult;
-
-    try {
-        forwardResult = await forwardWebhook(
-            rawBody,
-            contentType,
-            env,
-        );
-    } catch (error) {
-        console.error("Could not forward Ko-fi webhook:", error);
-
-        forwardResult = {
-            forwarded: false,
-            error: error instanceof Error ? error.message : String(error),
-        };
-    }
+    const forwardingResults = await forwardWebhooks(
+        rawBody,
+        contentType,
+        env,
+    );
 
     return jsonResponse({
         ok: true,
         voicely: voicelyResult,
-        forwarding: forwardResult,
+        forwarding: forwardingResults,
     });
 }
 

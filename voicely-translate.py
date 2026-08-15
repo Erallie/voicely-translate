@@ -404,6 +404,7 @@ def initialize_database() -> None:
             "transcription_used_microusd": "INTEGER NOT NULL DEFAULT 0",
             "translation_used_microusd": "INTEGER NOT NULL DEFAULT 0",
             "default_languages": "TEXT",
+            "trial_notice_shown": "INTEGER NOT NULL DEFAULT 0",
         }
 
         for column_name, definition in migrations.items():
@@ -642,6 +643,51 @@ def get_available_credit_microusd(guild_id: int) -> int:
         int(state["trial_balance_microusd"])
         + int(state["paid_balance_microusd"]),
     )
+
+
+def has_ever_purchased_credit(guild_id: int) -> bool:
+    state = get_credit_state(guild_id)
+    return int(state["total_purchased_microusd"]) > 0
+
+
+def should_show_trial_notice(guild_id: int) -> bool:
+    if guild_id in UNLIMITED_CREDIT_GUILD_IDS:
+        return False
+
+    state = get_credit_state(guild_id)
+
+    if int(state["total_purchased_microusd"]) > 0:
+        return False
+
+    if int(state["trial_balance_microusd"]) <= 0:
+        return False
+
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        row = connection.execute(
+            """
+            SELECT trial_notice_shown
+            FROM guild_settings
+            WHERE guild_id = ?
+            """,
+            (guild_id,),
+        ).fetchone()
+
+    return row is not None and int(row[0] or 0) == 0
+
+
+def mark_trial_notice_shown(guild_id: int) -> None:
+    ensure_guild_account(guild_id)
+
+    with sqlite3.connect(DATABASE_FILE) as connection:
+        connection.execute(
+            """
+            UPDATE guild_settings
+            SET trial_notice_shown = 1
+            WHERE guild_id = ?
+            """,
+            (guild_id,),
+        )
+        connection.commit()
 
 
 def has_available_credit(guild_id: int) -> bool:
@@ -1344,8 +1390,14 @@ class TranslationSession:
 
         try:
             guild_locale = getattr(self.voice_channel.guild, "preferred_locale", "en-US")
+            message_key = (
+                "credit_exhausted"
+                if has_ever_purchased_credit(guild_id)
+                else "trial_exhausted"
+            )
+
             await self.voice_channel.send(
-                tr_locale(guild_locale, "credit_exhausted"),
+                tr_locale(guild_locale, message_key),
                 allowed_mentions=discord.AllowedMentions.none(),
             )
         except Exception as error:
@@ -2229,6 +2281,62 @@ UI = {
     "left": {"en":"Stopped translating and left the voice channel.","es":"Se detuvo la traducción y salí del canal de voz.","pt":"A tradução foi interrompida e saí do canal de voz.","fr":"La traduction a été arrêtée et j'ai quitté le salon vocal.","de":"Die Übersetzung wurde beendet und ich habe den Sprachkanal verlassen.","ja":"翻訳を停止し、ボイスチャンネルから退出しました。","ko":"번역을 중지하고 음성 채널에서 나갔습니다.","zh":"已停止翻译并离开语音频道。","ru":"Перевод остановлен, я вышел из голосового канала.","ar":"تم إيقاف الترجمة ومغادرة القناة الصوتية.","hi":"अनुवाद बंद कर दिया गया और वॉइस चैनल छोड़ दिया गया।","id":"Penerjemahan dihentikan dan saya keluar dari kanal suara."},
     "timeout_set": {"en":"Empty-channel timeout set to **{seconds} seconds**.","es":"El tiempo de espera del canal vacío se estableció en **{seconds} segundos**.","pt":"O tempo limite do canal vazio foi definido como **{seconds} segundos**.","fr":"Le délai du salon vide est défini sur **{seconds} secondes**.","de":"Die Wartezeit für einen leeren Kanal wurde auf **{seconds} Sekunden** gesetzt.","ja":"空チャンネルのタイムアウトを **{seconds}秒** に設定しました。","ko":"빈 채널 대기 시간을 **{seconds}초**로 설정했습니다.","zh":"空频道超时已设为 **{seconds} 秒**。","ru":"Таймаут пустого канала установлен на **{seconds} секунд**.","ar":"تم ضبط مهلة القناة الفارغة على **{seconds} ثانية**.","hi":"खाली चैनल की समयसीमा **{seconds} सेकंड** पर सेट की गई।","id":"Batas waktu kanal kosong diatur ke **{seconds} detik**."},
     "credit_exhausted": {"en":"### Voicely Translate credit exhausted\nThis server has used all of its available translation credit, so I'm leaving the voice channel.\nAn administrator can use `/topup` to add more credit through Ko-fi.","es":"### Créditos de Voicely Translate agotados\nEste servidor ha usado todos sus créditos de traducción disponibles, así que saldré del canal de voz.\nUn administrador puede usar `/topup` para añadir más créditos mediante Ko-fi.","pt":"### Créditos do Voicely Translate esgotados\nEste servidor usou todos os créditos de tradução disponíveis, então vou sair do canal de voz.\nUm administrador pode usar `/topup` para adicionar créditos pelo Ko-fi.","fr":"### Crédits Voicely Translate épuisés\nCe serveur a utilisé tous ses crédits de traduction disponibles, je quitte donc le salon vocal.\nUn administrateur peut utiliser `/topup` pour ajouter des crédits via Ko-fi.","de":"### Voicely-Translate-Credits aufgebraucht\nDieser Server hat sein gesamtes Übersetzungsguthaben verbraucht, daher verlasse ich den Sprachkanal.\nEin Administrator kann mit `/topup` über Ko-fi weitere Credits hinzufügen.","ja":"### Voicely Translateクレジットを使い切りました\nこのサーバーの利用可能な翻訳クレジットがなくなったため、ボイスチャンネルから退出します。\n管理者は `/topup` でKo-fiからクレジットを追加できます。","ko":"### Voicely Translate 크레딧 소진\n이 서버의 사용 가능한 번역 크레딧을 모두 사용했으므로 음성 채널에서 나갑니다.\n관리자는 `/topup`을 사용해 Ko-fi에서 크레딧을 추가할 수 있습니다.","zh":"### Voicely Translate 点数已用尽\n此服务器已用完所有可用翻译点数，因此我将离开语音频道。\n管理员可以使用 `/topup` 通过 Ko-fi 添加更多点数。","ru":"### Кредиты Voicely Translate закончились\nСервер израсходовал все доступные кредиты перевода, поэтому я выхожу из голосового канала.\nАдминистратор может использовать `/topup`, чтобы добавить кредиты через Ko-fi.","ar":"### نفد رصيد Voicely Translate\nاستخدم هذا الخادم كل رصيد الترجمة المتاح، لذلك سأغادر القناة الصوتية.\nيمكن للمسؤول استخدام `/topup` لإضافة رصيد عبر Ko-fi.","hi":"### Voicely Translate क्रेडिट समाप्त\nइस सर्वर ने उपलब्ध सभी अनुवाद क्रेडिट इस्तेमाल कर लिए हैं, इसलिए मैं वॉइस चैनल छोड़ रहा हूँ।\nएडमिन `/topup` से Ko-fi के माध्यम से और क्रेडिट जोड़ सकता है।","id":"### Kredit Voicely Translate habis\nServer ini telah menggunakan seluruh kredit terjemahan yang tersedia, jadi saya akan keluar dari kanal suara.\nAdministrator dapat menggunakan `/topup` untuk menambah kredit melalui Ko-fi."},
+    "trial_notice": {
+        "en":"**Free trial:** This server includes **50 free Voicely Credits** to get started.",
+        "es":"**Prueba gratuita:** Este servidor incluye **50 créditos Voicely gratis** para comenzar.",
+        "pt":"**Teste gratuito:** Este servidor inclui **50 Voicely Credits grátis** para começar.",
+        "fr":"**Essai gratuit :** Ce serveur comprend **50 crédits Voicely gratuits** pour commencer.",
+        "de":"**Kostenlose Testversion:** Dieser Server erhält zum Start **50 kostenlose Voicely Credits**.",
+        "ja":"**無料トライアル:** このサーバーには開始時に **50 Voicely Credits** が無料で付与されます。",
+        "ko":"**무료 체험:** 이 서버에는 시작할 수 있도록 **50개의 무료 Voicely Credits**가 포함됩니다.",
+        "zh":"**免费试用：** 此服务器初始包含 **50 个免费 Voicely Credits**。",
+        "ru":"**Бесплатный пробный период:** Для начала этот сервер получает **50 бесплатных Voicely Credits**.",
+        "ar":"**تجربة مجانية:** يحصل هذا الخادم على **50 رصيد Voicely مجانيًا** للبدء.",
+        "hi":"**मुफ़्त ट्रायल:** इस सर्वर को शुरुआत के लिए **50 मुफ़्त Voicely Credits** मिलते हैं।",
+        "id":"**Uji coba gratis:** Server ini mendapat **50 Voicely Credits gratis** untuk memulai.",
+    },
+    "trial_notice_once": {
+        'en':"This message will not be displayed again.",
+        'es':"Este mensaje no se volverá a mostrar.",
+        'pt':"Esta mensagem não será exibida novamente.",
+        'fr':"Ce message ne sera plus affiché.",
+        'de':"Diese Nachricht wird nicht erneut angezeigt.",
+        'ja':"このメッセージは今後表示されません。",
+        'ko':"이 메시지는 다시 표시되지 않습니다.",
+        'zh':"此消息将不会再次显示。",
+        'ru':"Это сообщение больше не будет отображаться.",
+        'ar':"لن يتم عرض هذه الرسالة مرة أخرى.",
+        'hi':"यह संदेश दोबारा प्रदर्शित नहीं किया जाएगा।",
+        'id':"Pesan ini tidak akan ditampilkan lagi.",
+    },
+    "trial_exhausted": {
+        "en":"### Free trial ended\nThis server has used all **50 free Voicely Credits** included with its trial, so I'm leaving the voice channel.\nTo continue using Voicely Translate, an administrator can use `/topup` to purchase additional credits through Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "es":"### Prueba gratuita finalizada\nEste servidor ha usado los **50 créditos Voicely gratis** incluidos con la prueba, así que saldré del canal de voz.\nPara seguir usando Voicely Translate, un administrador puede usar `/topup` para comprar créditos adicionales mediante Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "pt":"### Teste gratuito encerrado\nEste servidor usou todos os **50 Voicely Credits grátis** incluídos no teste, então vou sair do canal de voz.\nPara continuar usando o Voicely Translate, um administrador pode usar `/topup` para comprar créditos adicionais pelo Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "fr":"### Essai gratuit terminé\nCe serveur a utilisé les **50 crédits Voicely gratuits** inclus dans son essai, je quitte donc le salon vocal.\nPour continuer à utiliser Voicely Translate, un administrateur peut utiliser `/topup` pour acheter des crédits supplémentaires via Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "de":"### Kostenlose Testversion beendet\nDieser Server hat alle **50 kostenlosen Voicely Credits** aus der Testversion verbraucht, daher verlasse ich den Sprachkanal.\nUm Voicely Translate weiter zu verwenden, kann ein Administrator mit `/topup` zusätzliche Credits über Ko-fi kaufen.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "ja":"### 無料トライアル終了\nこのサーバーはトライアルに含まれる **50 Voicely Credits** をすべて使い切ったため、ボイスチャンネルから退出します。\nVoicely Translateを引き続き使用するには、管理者が `/topup` からKo-fiで追加クレジットを購入できます。\n\n**100 Voicely Credits = $1.00 USD.**",
+        "ko":"### 무료 체험 종료\n이 서버는 체험에 포함된 **50개의 무료 Voicely Credits**를 모두 사용했으므로 음성 채널에서 나갑니다.\nVoicely Translate를 계속 사용하려면 관리자가 `/topup`으로 Ko-fi에서 추가 크레딧을 구매할 수 있습니다.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "zh":"### 免费试用已结束\n此服务器已用完试用包含的 **50 个免费 Voicely Credits**，因此我将离开语音频道。\n要继续使用 Voicely Translate，管理员可以使用 `/topup` 通过 Ko-fi 购买更多点数。\n\n**100 Voicely Credits = $1.00 USD.**",
+        "ru":"### Бесплатный пробный период завершён\nСервер использовал все **50 бесплатных Voicely Credits**, включённых в пробный период, поэтому я выхожу из голосового канала.\nЧтобы продолжить использовать Voicely Translate, администратор может использовать `/topup` для покупки дополнительных кредитов через Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "ar":"### انتهت التجربة المجانية\nاستخدم هذا الخادم جميع **أرصدة Voicely المجانية البالغ عددها 50** والمشمولة في التجربة، لذلك سأغادر القناة الصوتية.\nلمواصلة استخدام Voicely Translate، يمكن للمسؤول استخدام `/topup` لشراء أرصدة إضافية عبر Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "hi":"### मुफ़्त ट्रायल समाप्त\nइस सर्वर ने ट्रायल में शामिल सभी **50 मुफ़्त Voicely Credits** इस्तेमाल कर लिए हैं, इसलिए मैं वॉइस चैनल छोड़ रहा हूँ।\nVoicely Translate का उपयोग जारी रखने के लिए एडमिन `/topup` से Ko-fi के माध्यम से अतिरिक्त क्रेडिट खरीद सकता है।\n\n**100 Voicely Credits = $1.00 USD.**",
+        "id":"### Uji coba gratis berakhir\nServer ini telah menggunakan semua **50 Voicely Credits gratis** yang disertakan dalam uji coba, jadi saya akan keluar dari kanal suara.\nUntuk terus menggunakan Voicely Translate, administrator dapat menggunakan `/topup` untuk membeli kredit tambahan melalui Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+    },
+    "trial_exhausted_join": {
+        "en":"### Free trial ended\nThis server has used all **50 free Voicely Credits** included with its trial.\nTo continue using Voicely Translate, an administrator can use `/topup` to purchase additional credits through Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "es":"### Prueba gratuita finalizada\nEste servidor ha usado los **50 créditos Voicely gratis** incluidos con la prueba.\nPara seguir usando Voicely Translate, un administrador puede usar `/topup` para comprar créditos adicionales mediante Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "pt":"### Teste gratuito encerrado\nEste servidor usou todos os **50 Voicely Credits grátis** incluídos no teste.\nPara continuar usando o Voicely Translate, um administrador pode usar `/topup` para comprar créditos adicionais pelo Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "fr":"### Essai gratuit terminé\nCe serveur a utilisé les **50 crédits Voicely gratuits** inclus dans son essai.\nPour continuer à utiliser Voicely Translate, un administrateur peut utiliser `/topup` pour acheter des crédits supplémentaires via Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "de":"### Kostenlose Testversion beendet\nDieser Server hat alle **50 kostenlosen Voicely Credits** aus der Testversion verbraucht.\nUm Voicely Translate weiter zu verwenden, kann ein Administrator mit `/topup` zusätzliche Credits über Ko-fi kaufen.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "ja":"### 無料トライアル終了\nこのサーバーはトライアルに含まれる **50 Voicely Credits** をすべて使い切りました。\nVoicely Translateを引き続き使用するには、管理者が `/topup` からKo-fiで追加クレジットを購入できます。\n\n**100 Voicely Credits = $1.00 USD.**",
+        "ko":"### 무료 체험 종료\n이 서버는 체험에 포함된 **50개의 무료 Voicely Credits**를 모두 사용했습니다.\nVoicely Translate를 계속 사용하려면 관리자가 `/topup`으로 Ko-fi에서 추가 크레딧을 구매할 수 있습니다.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "zh":"### 免费试用已结束\n此服务器已用完试用包含的 **50 个免费 Voicely Credits**。\n要继续使用 Voicely Translate，管理员可以使用 `/topup` 通过 Ko-fi 购买更多点数。\n\n**100 Voicely Credits = $1.00 USD.**",
+        "ru":"### Бесплатный пробный период завершён\nСервер использовал все **50 бесплатных Voicely Credits**, включённых в пробный период.\nЧтобы продолжить использовать Voicely Translate, администратор может использовать `/topup` для покупки дополнительных кредитов через Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "ar":"### انتهت التجربة المجانية\nاستخدم هذا الخادم جميع **أرصدة Voicely المجانية البالغ عددها 50** والمشمولة في التجربة.\nلمواصلة استخدام Voicely Translate، يمكن للمسؤول استخدام `/topup` لشراء أرصدة إضافية عبر Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+        "hi":"### मुफ़्त ट्रायल समाप्त\nइस सर्वर ने ट्रायल में शामिल सभी **50 मुफ़्त Voicely Credits** इस्तेमाल कर लिए हैं।\nVoicely Translate का उपयोग जारी रखने के लिए एडमिन `/topup` से Ko-fi के माध्यम से अतिरिक्त क्रेडिट खरीद सकता है।\n\n**100 Voicely Credits = $1.00 USD.**",
+        "id":"### Uji coba gratis berakhir\nServer ini telah menggunakan semua **50 Voicely Credits gratis** yang disertakan dalam uji coba.\nUntuk terus menggunakan Voicely Translate, administrator dapat menggunakan `/topup` untuk membeli kredit tambahan melalui Ko-fi.\n\n**100 Voicely Credits = $1.00 USD.**",
+    },
 
     "no_default_languages": {
         "en":"No default languages have been set for this server. Specify languages with `/join`, or ask a server administrator to set them with `/defaultlanguages`.",
@@ -2508,8 +2616,14 @@ class TranslationCommands(commands.Cog):
             )
 
         if not has_available_credit(interaction.guild_id):
+            message_key = (
+                "no_credit"
+                if has_ever_purchased_credit(interaction.guild_id)
+                else "trial_exhausted_join"
+            )
+
             await interaction.response.send_message(
-                tr(interaction, "no_credit"),
+                tr(interaction, message_key),
                 ephemeral=True,
             )
             return
@@ -2577,7 +2691,24 @@ class TranslationCommands(commands.Cog):
 
             languages_text = ", ".join(requested_languages)
 
-            join_message = tr(interaction, "join", channel=voice_channel.name, languages=languages_text)
+            join_message = tr(
+                interaction,
+                "join",
+                channel=voice_channel.name,
+                languages=languages_text,
+            )
+
+            show_trial_notice = should_show_trial_notice(
+                interaction.guild_id
+            )
+
+            if show_trial_notice:
+                join_message += (
+                    "\n\n"
+                    + tr(interaction, "trial_notice")
+                    + "\n-# "
+                    + tr(interaction, "trial_notice_once")
+                )
 
             voicely_text_bot_id = 1290741552158609419
             voicely_text_member = interaction.guild.get_member(
@@ -2610,6 +2741,9 @@ class TranslationCommands(commands.Cog):
                 join_message,
                 ephemeral=False,
             )
+
+            if show_trial_notice:
+                mark_trial_notice_shown(interaction.guild_id)
 
         except Exception as error:
             print(

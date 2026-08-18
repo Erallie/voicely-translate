@@ -2495,6 +2495,11 @@ class TranslationCommands(commands.Cog):
             )
             return
 
+        # Acknowledge the interaction before Ko-fi network requests and
+        # database work; Discord invalidates unacknowledged interactions after
+        # a short deadline.
+        await interaction.response.defer()
+
         await sync_kofi_topups_safely(interaction.guild_id, "join")
 
         if not await asyncio.to_thread(
@@ -2506,7 +2511,7 @@ class TranslationCommands(commands.Cog):
                 else "trial_exhausted_join"
             )
 
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 tr(interaction, message_key),
                 ephemeral=True,
             )
@@ -2518,7 +2523,7 @@ class TranslationCommands(commands.Cog):
             )
 
             if not requested_languages:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     tr(interaction, "no_default_languages"),
                     ephemeral=True,
                 )
@@ -2527,7 +2532,7 @@ class TranslationCommands(commands.Cog):
             requested_languages = parse_languages(languages)
 
             if not requested_languages:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     tr(interaction, "provide_language"),
                     ephemeral=True,
                 )
@@ -2536,13 +2541,11 @@ class TranslationCommands(commands.Cog):
         existing = sessions.get(interaction.guild_id)
 
         if existing is not None and not existing.closed:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 tr(interaction, "already_translating", channel=existing.voice_channel.name),
                 ephemeral=True,
             )
             return
-
-        await interaction.response.defer()
 
         try:
             session = TranslationSession(
@@ -2812,12 +2815,14 @@ class TranslationCommands(commands.Cog):
             )
             return
 
+        await interaction.response.defer(ephemeral=True)
+
         code = await asyncio.to_thread(
             get_or_create_topup_code, interaction.guild_id
         )
 
         if not KOFI_WORKER_URL or not KOFI_BOT_API_SECRET:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 tr(interaction, "topup_not_configured", code=code),
                 ephemeral=True,
             )
@@ -2832,7 +2837,7 @@ class TranslationCommands(commands.Cog):
                 f"{interaction.guild_id}: {error!r}"
             )
 
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 tr(interaction, "topup_service_error"),
                 ephemeral=True,
             )
@@ -2859,7 +2864,7 @@ class TranslationCommands(commands.Cog):
             tr(interaction, "topup_after_payment"),
         ])
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
             "\n".join(lines),
             ephemeral=True,
         )
@@ -2879,6 +2884,8 @@ class TranslationCommands(commands.Cog):
             )
             return
 
+        await interaction.response.defer(ephemeral=True)
+
         await sync_kofi_topups_safely(interaction.guild_id, "balance")
 
         state = await asyncio.to_thread(
@@ -2888,7 +2895,7 @@ class TranslationCommands(commands.Cog):
         paid = int(state["paid_balance_microusd"])
         available = max(0, trial + paid)
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
             localized_balance(interaction, available, trial, paid),
             ephemeral=True,
         )
@@ -2908,13 +2915,15 @@ class TranslationCommands(commands.Cog):
             )
             return
 
+        await interaction.response.defer(ephemeral=True)
+
         await sync_kofi_topups_safely(interaction.guild_id, "usage")
 
         state = await asyncio.to_thread(
             get_credit_state, interaction.guild_id
         )
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
             localized_usage(interaction, state),
             ephemeral=True,
         )
@@ -2948,13 +2957,15 @@ class TranslationCommands(commands.Cog):
             )
             return
 
+        await interaction.response.defer(ephemeral=True)
+
         await asyncio.to_thread(
             set_default_languages,
             interaction.guild_id,
             requested_languages,
         )
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
             tr(
                 interaction,
                 "default_languages_set",
@@ -2983,6 +2994,8 @@ class TranslationCommands(commands.Cog):
             )
             return
 
+        await interaction.response.defer(ephemeral=True)
+
         await asyncio.to_thread(
             set_idle_timeout_seconds,
             interaction.guild_id,
@@ -2995,7 +3008,7 @@ class TranslationCommands(commands.Cog):
             session.cancel_idle_timeout()
             session.update_idle_timeout()
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
             tr(interaction, "timeout_set", seconds=seconds),
             ephemeral=True,
         )

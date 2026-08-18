@@ -2,6 +2,7 @@ import asyncio
 import base64
 import io
 import json
+import logging
 import os
 import secrets
 import sqlite3
@@ -12,8 +13,10 @@ import urllib.parse
 import urllib.request
 import wave
 from array import array
+from decimal import Decimal
 from pathlib import Path
 from dataclasses import dataclass, field
+from contextlib import closing
 
 import discord
 from discord import app_commands
@@ -21,6 +24,21 @@ from discord.ext import commands
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 import webrtcvad
+
+from voicely_audio import SpeechDetector
+from voicely_billing import token_cost_microusd
+from voicely_localization import BALANCE_LABELS, USAGE_LABELS
+from voicely_languages import validate_translation_response
+from voicely_runtime import BackgroundTasks, configure_logging
+from voicely_storage import (
+    apply_payment_event as storage_apply_payment_event,
+    get_or_create_topup_code as storage_get_or_create_topup_code,
+    record_api_usage as storage_record_api_usage,
+)
+
+
+configure_logging()
+logger = logging.getLogger("voicely")
 
 
 # ============================================================
@@ -86,14 +104,20 @@ UNLIMITED_CREDIT_GUILD_IDS = {
 
 # Current OpenAI list prices used for usage accounting.
 # Costs are stored as integer micro-dollars to avoid floating-point drift.
-TRANSCRIPTION_INPUT_USD_PER_MILLION = 1.25
-TRANSCRIPTION_OUTPUT_USD_PER_MILLION = 5.00
-TRANSLATION_INPUT_USD_PER_MILLION = 0.15
-TRANSLATION_OUTPUT_USD_PER_MILLION = 0.60
+TRANSCRIPTION_INPUT_USD_PER_MILLION = Decimal("1.25")
+TRANSCRIPTION_OUTPUT_USD_PER_MILLION = Decimal("5.00")
+TRANSLATION_INPUT_USD_PER_MILLION = Decimal("0.15")
+TRANSLATION_OUTPUT_USD_PER_MILLION = Decimal("0.60")
 
 # Optional multiplier for operating/payment-processing overhead.
 # 1.0 means users are charged only the calculated API token cost.
-USAGE_COST_MULTIPLIER = 1.5
+USAGE_COST_MULTIPLIER = Decimal("1.5")
+
+# Protect the event loop from malformed or runaway worker payloads.
+MAX_WORKER_MESSAGE_BYTES = 2_000_000
+MAX_PCM_PACKET_BYTES = 1_500_000
+MAX_CONCURRENT_API_REQUESTS_PER_SESSION = 3
+MEMBER_CACHE_TTL_SECONDS = 3600.0
 
 # Ko-fi / Cloudflare Worker integration.
 KOFI_URL = os.environ.get("KOFI_URL", "").strip()
@@ -224,6 +248,15 @@ REGIONAL_LANGUAGE_TAGS = {
 
 openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
+speech_detector = SpeechDetector(
+    sample_rate=PCM_SAMPLE_RATE,
+    sample_width=PCM_SAMPLE_WIDTH,
+    frame_ms=VAD_FRAME_MS,
+    aggressiveness=VAD_AGGRESSIVENESS,
+    minimum_ratio=VAD_MIN_SPEECH_RATIO,
+    minimum_consecutive=VAD_MIN_CONSECUTIVE_SPEECH_FRAMES,
+)
+
 
 # ============================================================
 # Helpers
@@ -334,39 +367,7 @@ def stereo_pcm_to_mono(pcm: bytes) -> bytes:
 
 def contains_speech(pcm: bytes) -> tuple[bool, float, int]:
     """Return whether an utterance contains enough human speech for STT."""
-    mono_pcm = stereo_pcm_to_mono(pcm)
-    frame_bytes = PCM_SAMPLE_RATE * PCM_SAMPLE_WIDTH * VAD_FRAME_MS // 1000
-
-    if frame_bytes <= 0 or len(mono_pcm) < frame_bytes:
-        return False, 0.0, 0
-
-    vad = webrtcvad.Vad(VAD_AGGRESSIVENESS)
-    speech_frames = 0
-    total_frames = 0
-    consecutive = 0
-    max_consecutive = 0
-
-    for start in range(0, len(mono_pcm) - frame_bytes + 1, frame_bytes):
-        frame = mono_pcm[start:start + frame_bytes]
-        total_frames += 1
-
-        if vad.is_speech(frame, PCM_SAMPLE_RATE):
-            speech_frames += 1
-            consecutive += 1
-            max_consecutive = max(max_consecutive, consecutive)
-        else:
-            consecutive = 0
-
-    if total_frames == 0:
-        return False, 0.0, 0
-
-    speech_ratio = speech_frames / total_frames
-    is_speech = (
-        speech_ratio >= VAD_MIN_SPEECH_RATIO
-        and max_consecutive >= VAD_MIN_CONSECUTIVE_SPEECH_FRAMES
-    )
-
-    return is_speech, speech_ratio, max_consecutive
+    return speech_detector.contains_speech(pcm)
 
 
 def initialize_database() -> None:
@@ -376,7 +377,7 @@ def initialize_database() -> None:
     The same guild_settings row stores voice timeout configuration and the
     server's local credit/accounting state.
     """
-    with sqlite3.connect(DATABASE_FILE) as connection:
+    with closing(sqlite3.connect(DATABASE_FILE)) as connection:
         connection.execute(
             """
             CREATE TABLE IF NOT EXISTS guild_settings (
@@ -437,7 +438,7 @@ def initialize_database() -> None:
 
 
 def ensure_guild_account(guild_id: int) -> None:
-    with sqlite3.connect(DATABASE_FILE) as connection:
+    with closing(sqlite3.connect(DATABASE_FILE)) as connection:
         connection.execute(
             """
             INSERT OR IGNORE INTO guild_settings (
@@ -453,7 +454,7 @@ def ensure_guild_account(guild_id: int) -> None:
 def get_idle_timeout_seconds(guild_id: int) -> int:
     ensure_guild_account(guild_id)
 
-    with sqlite3.connect(DATABASE_FILE) as connection:
+    with closing(sqlite3.connect(DATABASE_FILE)) as connection:
         row = connection.execute(
             """
             SELECT idle_timeout_seconds
@@ -475,7 +476,7 @@ def set_idle_timeout_seconds(
 ) -> None:
     ensure_guild_account(guild_id)
 
-    with sqlite3.connect(DATABASE_FILE) as connection:
+    with closing(sqlite3.connect(DATABASE_FILE)) as connection:
         connection.execute(
             """
             UPDATE guild_settings
@@ -489,7 +490,7 @@ def set_idle_timeout_seconds(
 def get_default_languages(guild_id: int) -> list[str]:
     ensure_guild_account(guild_id)
 
-    with sqlite3.connect(DATABASE_FILE) as connection:
+    with closing(sqlite3.connect(DATABASE_FILE)) as connection:
         row = connection.execute(
             """
             SELECT default_languages
@@ -547,7 +548,7 @@ def set_default_languages(
         ):
             normalized_languages.append(language)
 
-    with sqlite3.connect(DATABASE_FILE) as connection:
+    with closing(sqlite3.connect(DATABASE_FILE)) as connection:
         connection.execute(
             """
             UPDATE guild_settings
@@ -570,42 +571,15 @@ def _generate_topup_code() -> str:
 
 def get_or_create_topup_code(guild_id: int) -> str:
     ensure_guild_account(guild_id)
-
-    with sqlite3.connect(DATABASE_FILE) as connection:
-        row = connection.execute(
-            """
-            SELECT topup_code
-            FROM guild_settings
-            WHERE guild_id = ?
-            """,
-            (guild_id,),
-        ).fetchone()
-
-        if row is not None and row[0]:
-            return str(row[0])
-
-        while True:
-            code = _generate_topup_code()
-
-            try:
-                connection.execute(
-                    """
-                    UPDATE guild_settings
-                    SET topup_code = ?
-                    WHERE guild_id = ?
-                    """,
-                    (code, guild_id),
-                )
-                connection.commit()
-                return code
-            except sqlite3.IntegrityError:
-                continue
+    return storage_get_or_create_topup_code(
+        DATABASE_FILE, guild_id, _generate_topup_code
+    )
 
 
 def get_credit_state(guild_id: int) -> dict[str, int | str | None]:
     ensure_guild_account(guild_id)
 
-    with sqlite3.connect(DATABASE_FILE) as connection:
+    with closing(sqlite3.connect(DATABASE_FILE)) as connection:
         row = connection.execute(
             """
             SELECT
@@ -662,7 +636,7 @@ def should_show_trial_notice(guild_id: int) -> bool:
     if int(state["trial_balance_microusd"]) <= 0:
         return False
 
-    with sqlite3.connect(DATABASE_FILE) as connection:
+    with closing(sqlite3.connect(DATABASE_FILE)) as connection:
         row = connection.execute(
             """
             SELECT trial_notice_shown
@@ -678,7 +652,7 @@ def should_show_trial_notice(guild_id: int) -> bool:
 def mark_trial_notice_shown(guild_id: int) -> None:
     ensure_guild_account(guild_id)
 
-    with sqlite3.connect(DATABASE_FILE) as connection:
+    with closing(sqlite3.connect(DATABASE_FILE)) as connection:
         connection.execute(
             """
             UPDATE guild_settings
@@ -705,15 +679,16 @@ def format_credits(micro_usd: int) -> str:
 def calculate_token_cost_microusd(
     input_tokens: int,
     output_tokens: int,
-    input_usd_per_million: float,
-    output_usd_per_million: float,
+    input_usd_per_million: Decimal,
+    output_usd_per_million: Decimal,
 ) -> int:
-    input_cost = input_tokens * input_usd_per_million
-    output_cost = output_tokens * output_usd_per_million
-
-    # USD-per-million × tokens gives micro-dollars directly.
-    raw_microusd = input_cost + output_cost
-    return max(0, round(raw_microusd * USAGE_COST_MULTIPLIER))
+    return token_cost_microusd(
+        input_tokens,
+        output_tokens,
+        input_usd_per_million,
+        output_usd_per_million,
+        USAGE_COST_MULTIPLIER,
+    )
 
 
 def record_api_usage(
@@ -722,88 +697,13 @@ def record_api_usage(
     translation_microusd: int = 0,
 ) -> None:
     ensure_guild_account(guild_id)
-
-    transcription_cost = max(0, int(transcription_microusd))
-    translation_cost = max(0, int(translation_microusd))
-    total_cost = transcription_cost + translation_cost
-
-    if total_cost <= 0:
-        return
-
-    with sqlite3.connect(DATABASE_FILE) as connection:
-        connection.execute("BEGIN IMMEDIATE")
-
-        # Unlimited guilds still track their real API usage, but their
-        # trial/paid balances are never reduced.
-        if guild_id in UNLIMITED_CREDIT_GUILD_IDS:
-            connection.execute(
-                """
-                UPDATE guild_settings
-                SET
-                    total_used_microusd = total_used_microusd + ?,
-                    transcription_used_microusd =
-                        transcription_used_microusd + ?,
-                    translation_used_microusd =
-                        translation_used_microusd + ?
-                WHERE guild_id = ?
-                """,
-                (
-                    total_cost,
-                    transcription_cost,
-                    translation_cost,
-                    guild_id,
-                ),
-            )
-
-            connection.commit()
-            return
-
-        row = connection.execute(
-            """
-            SELECT
-                trial_balance_microusd,
-                paid_balance_microusd
-            FROM guild_settings
-            WHERE guild_id = ?
-            """,
-            (guild_id,),
-        ).fetchone()
-
-        if row is None:
-            connection.rollback()
-            return
-
-        trial_balance = int(row[0])
-        paid_balance = int(row[1])
-
-        trial_spend = min(trial_balance, total_cost)
-        remaining_cost = total_cost - trial_spend
-        paid_spend = min(paid_balance, remaining_cost)
-
-        connection.execute(
-            """
-            UPDATE guild_settings
-            SET
-                trial_balance_microusd = trial_balance_microusd - ?,
-                paid_balance_microusd = paid_balance_microusd - ?,
-                total_used_microusd = total_used_microusd + ?,
-                transcription_used_microusd =
-                    transcription_used_microusd + ?,
-                translation_used_microusd =
-                    translation_used_microusd + ?
-            WHERE guild_id = ?
-            """,
-            (
-                trial_spend,
-                paid_spend,
-                total_cost,
-                transcription_cost,
-                translation_cost,
-                guild_id,
-            ),
-        )
-
-        connection.commit()
+    storage_record_api_usage(
+        DATABASE_FILE,
+        guild_id,
+        transcription_microusd,
+        translation_microusd,
+        guild_id in UNLIMITED_CREDIT_GUILD_IDS,
+    )
 
 
 def apply_payment_event(
@@ -819,49 +719,9 @@ def apply_payment_event(
     """
     ensure_guild_account(guild_id)
 
-    with sqlite3.connect(DATABASE_FILE) as connection:
-        connection.execute("BEGIN IMMEDIATE")
-
-        already_seen = connection.execute(
-            """
-            SELECT 1
-            FROM payment_events
-            WHERE message_id = ?
-            """,
-            (message_id,),
-        ).fetchone()
-
-        if already_seen is not None:
-            connection.rollback()
-            return False
-
-        connection.execute(
-            """
-            INSERT INTO payment_events (
-                message_id,
-                guild_id,
-                amount_microusd
-            )
-            VALUES (?, ?, ?)
-            """,
-            (message_id, guild_id, amount_microusd),
-        )
-
-        connection.execute(
-            """
-            UPDATE guild_settings
-            SET
-                paid_balance_microusd =
-                    paid_balance_microusd + ?,
-                total_purchased_microusd =
-                    total_purchased_microusd + ?
-            WHERE guild_id = ?
-            """,
-            (amount_microusd, amount_microusd, guild_id),
-        )
-
-        connection.commit()
-        return True
+    return storage_apply_payment_event(
+        DATABASE_FILE, guild_id, message_id, amount_microusd
+    )
 
 
 def _worker_request_sync(
@@ -952,7 +812,7 @@ async def sync_kofi_topups(guild_id: int) -> int:
     if not KOFI_WORKER_URL or not KOFI_BOT_API_SECRET:
         return 0
 
-    code = get_or_create_topup_code(guild_id)
+    code = await asyncio.to_thread(get_or_create_topup_code, guild_id)
 
     await register_topup_code(guild_id, code)
 
@@ -983,7 +843,8 @@ async def sync_kofi_topups(guild_id: int) -> int:
         if not message_id or amount_microusd <= 0:
             continue
 
-        if apply_payment_event(
+        if await asyncio.to_thread(
+            apply_payment_event,
             guild_id,
             message_id,
             amount_microusd,
@@ -1003,18 +864,31 @@ async def sync_kofi_topups(guild_id: int) -> int:
                 },
             )
         except Exception as error:
-            print(
+            logger.exception(
                 f"[KOFI] Payment(s) applied locally but could not be "
                 f"marked claimed remotely: {error!r}"
             )
 
     if applied_count:
-        print(
+        logger.info(
             f"[KOFI] Applied {applied_count} new top-up payment(s) "
             f"for guild {guild_id}."
         )
 
     return applied_count
+
+
+async def sync_kofi_topups_safely(guild_id: int, context: str) -> int:
+    """Sync payments consistently for commands where failure is non-fatal."""
+    try:
+        return await sync_kofi_topups(guild_id)
+    except Exception:
+        logger.exception(
+            "Ko-fi synchronization failed context=%s guild=%s",
+            context,
+            guild_id,
+        )
+        return 0
 
 
 def count_human_members(channel: discord.VoiceChannel) -> int:
@@ -1104,6 +978,11 @@ class TranslationSession:
 
         self.buffers: dict[int, SpeakerBuffer] = {}
         self.user_locks: dict[int, asyncio.Lock] = {}
+        self.api_semaphore = asyncio.Semaphore(
+            MAX_CONCURRENT_API_REQUESTS_PER_SESSION
+        )
+        self.billing_lock = asyncio.Lock()
+        self.processing_tasks = BackgroundTasks(logger)
 
         self.closed = False
         self.buffer_task = asyncio.create_task(self._buffer_loop())
@@ -1156,7 +1035,7 @@ class TranslationSession:
             self.idle_timeout_task is None
             or self.idle_timeout_task.done()
         ):
-            print(
+            logger.info(
                 f"[VOICE TIMEOUT] {self.voice_channel.guild.name} has no "
                 f"human users in {self.voice_channel.name}; leaving in "
                 f"{timeout_seconds} second(s)."
@@ -1178,7 +1057,7 @@ class TranslationSession:
 
             guild_id = self.voice_channel.guild.id
 
-            print(
+            logger.info(
                 f"[VOICE TIMEOUT] Idle timeout reached in "
                 f"{self.voice_channel.name}; leaving voice."
             )
@@ -1187,7 +1066,7 @@ class TranslationSession:
             sessions.pop(guild_id, None)
 
         except asyncio.CancelledError:
-            print(
+            logger.info(
                 f"[VOICE TIMEOUT] Idle timeout cancelled for "
                 f"{self.voice_channel.guild.name}."
             )
@@ -1237,7 +1116,7 @@ class TranslationSession:
                         duration = pcm_duration_seconds(pcm)
 
                         if duration >= MIN_UTTERANCE_SECONDS:
-                            print(
+                            logger.info(
                                 f"[VOICE] Utterance ready from {member} "
                                 f"({member.id}); duration={duration:.2f}s"
                             )
@@ -1246,7 +1125,7 @@ class TranslationSession:
                 # Do not await these here. Each completed utterance gets its own
                 # task so different users can be transcribed simultaneously.
                 for user_id, member, pcm in ready:
-                    asyncio.create_task(
+                    self.processing_tasks.create(
                         self._process_utterance(user_id, member, pcm)
                     )
 
@@ -1265,7 +1144,10 @@ class TranslationSession:
         """
         lock = self.user_locks.setdefault(user_id, asyncio.Lock())
 
-        async with lock:
+        # The billing lock makes the balance check, API calls, and deductions
+        # one transaction from the guild's perspective. The semaphore remains
+        # explicit so this can later be relaxed to reserved-credit accounting.
+        async with lock, self.api_semaphore, self.billing_lock:
             if self.closed:
                 return
 
@@ -1273,14 +1155,14 @@ class TranslationSession:
                 has_speech, speech_ratio, max_consecutive = contains_speech(pcm)
 
                 if not has_speech:
-                    print(
+                    logger.info(
                         f"[VAD] Ignoring non-speech audio from {member} ({member.id}); "
                         f"speech={speech_ratio:.0%}, "
                         f"max_consecutive={max_consecutive} frames"
                     )
                     return
 
-                print(
+                logger.info(
                     f"[VAD] Speech detected from {member} ({member.id}); "
                     f"speech={speech_ratio:.0%}, "
                     f"max_consecutive={max_consecutive} frames"
@@ -1293,8 +1175,8 @@ class TranslationSession:
 
                 guild_id = self.voice_channel.guild.id
 
-                if not has_available_credit(guild_id):
-                    print(
+                if not await asyncio.to_thread(has_available_credit, guild_id):
+                    logger.info(
                         f"[CREDITS] Ignoring speech in guild {guild_id}; "
                         "no trial or paid credit remains."
                     )
@@ -1309,14 +1191,17 @@ class TranslationSession:
                 # Always charge the transcription request as soon as OpenAI
                 # returns its usage, even when the resulting transcript is empty
                 # or [NONVERBAL]. The audio and output tokens were still billed.
-                record_api_usage(
+                await asyncio.to_thread(
+                    record_api_usage,
                     guild_id,
-                    transcription_microusd=transcription_cost,
+                    transcription_cost,
                 )
 
                 if guild_id not in UNLIMITED_CREDIT_GUILD_IDS:
-                    remaining_credit = get_available_credit_microusd(guild_id)
-                    print(
+                    remaining_credit = await asyncio.to_thread(
+                        get_available_credit_microusd, guild_id
+                    )
+                    logger.info(
                         f"[CREDITS] Transcription charged "
                         f"{format_credits(transcription_cost)} credits; "
                         f"remaining={format_credits(remaining_credit)} credits."
@@ -1332,25 +1217,36 @@ class TranslationSession:
                     return
 
                 if transcript.strip().casefold() == "[nonverbal]":
-                    print(
+                    logger.info(
                         f"[VOICE] Ignoring nonverbal vocalization from {member} ({member.id}). "
                         "Transcription usage was still charged."
                     )
                     return
 
-                result, translation_cost = await self._translate(
-                    transcript,
-                    target_languages,
-                )
+                if len(target_languages) == 1:
+                    result = {
+                        "original_language": target_languages[0],
+                        "translations": {},
+                    }
+                    translation_cost = 0
+                else:
+                    result, translation_cost = await self._translate(
+                        transcript,
+                        target_languages,
+                    )
 
-                record_api_usage(
+                await asyncio.to_thread(
+                    record_api_usage,
                     guild_id,
-                    translation_microusd=translation_cost,
+                    0,
+                    translation_cost,
                 )
 
                 if guild_id not in UNLIMITED_CREDIT_GUILD_IDS:
-                    remaining_credit = get_available_credit_microusd(guild_id)
-                    print(
+                    remaining_credit = await asyncio.to_thread(
+                        get_available_credit_microusd, guild_id
+                    )
+                    logger.info(
                         f"[CREDITS] Translation charged "
                         f"{format_credits(translation_cost)} credits; "
                         f"remaining={format_credits(remaining_credit)} credits."
@@ -1367,11 +1263,11 @@ class TranslationSession:
                     target_languages=target_languages,
                 )
 
-                if not has_available_credit(guild_id):
+                if not await asyncio.to_thread(has_available_credit, guild_id):
                     await self._handle_credit_exhausted()
 
             except Exception as error:
-                print(
+                logger.exception(
                     f"Error processing speech from "
                     f"{member} ({member.id}): {error!r}"
                 )
@@ -1383,7 +1279,7 @@ class TranslationSession:
         self.credit_exhausted_notified = True
         guild_id = self.voice_channel.guild.id
 
-        print(
+        logger.info(
             f"[CREDITS] Guild {guild_id} has exhausted all trial and "
             "paid Voicely Translate credit."
         )
@@ -1392,7 +1288,7 @@ class TranslationSession:
             guild_locale = getattr(self.voice_channel.guild, "preferred_locale", "en-US")
             message_key = (
                 "credit_exhausted"
-                if has_ever_purchased_credit(guild_id)
+                if await asyncio.to_thread(has_ever_purchased_credit, guild_id)
                 else "trial_exhausted"
             )
 
@@ -1401,7 +1297,7 @@ class TranslationSession:
                 allowed_mentions=discord.AllowedMentions.none(),
             )
         except Exception as error:
-            print(
+            logger.exception(
                 f"[CREDITS] Could not post exhausted-credit notice in "
                 f"guild {guild_id}: {error!r}"
             )
@@ -1416,7 +1312,7 @@ class TranslationSession:
     ) -> tuple[str, int]:
         wav_bytes = make_wav_bytes(pcm)
 
-        print(
+        logger.info(
             f"[OPENAI] Sending {pcm_duration_seconds(pcm):.2f}s "
             f"of audio for transcription..."
         )
@@ -1459,7 +1355,7 @@ class TranslationSession:
             TRANSCRIPTION_OUTPUT_USD_PER_MILLION,
         )
 
-        print(
+        logger.info(
             f"[OPENAI] Transcript: {text!r} "
             f"(input={input_tokens}, output={output_tokens}, "
             f"cost=${cost_microusd / 1_000_000:.6f})"
@@ -1515,34 +1411,9 @@ class TranslationSession:
         raw = response.choices[0].message.content or "{}"
         data = json.loads(raw)
 
-        returned_original = normalize_language_tag(
-            str(data.get("original_language", ""))
-        )
-
-        original_language = next(
-            (
-                language
-                for language in target_languages
-                if language.casefold() == returned_original.casefold()
-            ),
-            target_languages[0],
-        )
-
-        raw_translations = data.get("translations", {})
-
-        if not isinstance(raw_translations, dict):
-            raw_translations = {}
-
-        translations = {}
-
-        for requested in target_languages:
-            if requested.casefold() == original_language.casefold():
-                continue
-
-            for returned_language, translated_text in raw_translations.items():
-                if returned_language.casefold() == requested.casefold():
-                    translations[requested] = str(translated_text).strip()
-                    break
+        parsed = validate_translation_response(data, target_languages)
+        original_language = str(parsed["original_language"])
+        translations = dict(parsed["translations"])
 
         usage = response.usage
         input_tokens = int(getattr(usage, "prompt_tokens", 0) or 0)
@@ -1555,7 +1426,7 @@ class TranslationSession:
             TRANSLATION_OUTPUT_USD_PER_MILLION,
         )
 
-        print(
+        logger.info(
             f"[OPENAI] Translation usage: input={input_tokens}, "
             f"output={output_tokens}, "
             f"cost=${cost_microusd / 1_000_000:.6f}"
@@ -1625,6 +1496,8 @@ class TranslationSession:
         if self.buffer_task:
             self.buffer_task.cancel()
 
+        await self.processing_tasks.cancel_all()
+
         bridge = getattr(self.bot, "voice_bridge", None)
 
         if bridge is not None:
@@ -1647,7 +1520,9 @@ class VoiceWorkerBridge:
         self.connected = asyncio.Event()
         self.worker_ready = asyncio.Event()
         self.pending_joins: dict[int, asyncio.Future] = {}
-        self.member_cache: dict[tuple[int, int], discord.Member] = {}
+        self.member_cache: dict[
+            tuple[int, int], tuple[discord.Member, float]
+        ] = {}
 
         self._stdout_task: asyncio.Task | None = None
         self._stderr_task: asyncio.Task | None = None
@@ -1673,7 +1548,7 @@ class VoiceWorkerBridge:
                 "Place voice-worker.mjs beside this Python file."
             )
 
-        print(
+        logger.info(
             f"[VOICE BRIDGE] Listening for Node worker on "
             f"{VOICE_WORKER_HOST}:{VOICE_WORKER_PORT}."
         )
@@ -1691,7 +1566,7 @@ class VoiceWorkerBridge:
                 "Check the Node worker output above."
             ) from error
 
-        print("[VOICE BRIDGE] Node voice worker is ready.")
+        logger.info("[VOICE BRIDGE] Node voice worker is ready.")
 
     async def _start_worker_process(self, reason: str) -> None:
         if self._stopping:
@@ -1719,7 +1594,7 @@ class VoiceWorkerBridge:
             self.connected.clear()
             self.worker_ready.clear()
 
-            print(
+            logger.info(
                 f"[VOICE BRIDGE] Starting Node voice worker "
                 f"({reason})..."
             )
@@ -1740,7 +1615,7 @@ class VoiceWorkerBridge:
 
             self.worker_process = process
 
-            print(
+            logger.info(
                 f"[VOICE BRIDGE] Node voice worker started with PID "
                 f"{process.pid}."
             )
@@ -1765,13 +1640,13 @@ class VoiceWorkerBridge:
             self.worker_process = None
 
         if self._stopping:
-            print(
+            logger.info(
                 f"[VOICE BRIDGE] Node voice worker exited during shutdown "
                 f"with code {return_code}."
             )
             return
 
-        print(
+        logger.info(
             f"[VOICE BRIDGE ERROR] Node voice worker exited unexpectedly "
             f"with code {return_code}."
         )
@@ -1789,7 +1664,7 @@ class VoiceWorkerBridge:
                 reason=f"automatic recovery after exit code {return_code}"
             )
         except Exception as error:
-            print(
+            logger.exception(
                 f"[VOICE BRIDGE ERROR] Failed to restart Node voice worker: "
                 f"{error!r}"
             )
@@ -1802,7 +1677,7 @@ class VoiceWorkerBridge:
             self.worker_process is None
             or self.worker_process.returncode is not None
         ):
-            print(
+            logger.info(
                 "[VOICE BRIDGE] Worker process is not running; "
                 "starting recovery."
             )
@@ -1813,7 +1688,7 @@ class VoiceWorkerBridge:
         if self.writer is not None and self.worker_ready.is_set():
             return
 
-        print(
+        logger.info(
             "[VOICE BRIDGE] Voice worker is not currently ready; "
             "waiting for recovery..."
         )
@@ -1837,7 +1712,7 @@ class VoiceWorkerBridge:
                         f"exited with code {self.worker_process.returncode}"
                     )
 
-            print(
+            logger.info(
                 f"[VOICE BRIDGE ERROR] Worker recovery timed out; "
                 f"process state: {process_state}."
             )
@@ -1852,14 +1727,14 @@ class VoiceWorkerBridge:
                 "is unavailable."
             )
 
-        print("[VOICE BRIDGE] Voice worker recovery completed.")
+        logger.info("[VOICE BRIDGE] Voice worker recovery completed.")
 
     async def stop(self) -> None:
         if self._stopping:
             return
 
         self._stopping = True
-        print("[VOICE BRIDGE] Shutting down Node voice worker...")
+        logger.info("[VOICE BRIDGE] Shutting down Node voice worker...")
 
         # Prevent pending join operations from hanging during shutdown.
         for future in self.pending_joins.values():
@@ -1871,9 +1746,9 @@ class VoiceWorkerBridge:
         if self.writer is not None:
             try:
                 await self.send({"type": "shutdown"})
-                print("[VOICE BRIDGE] Sent shutdown command to Node worker.")
+                logger.info("[VOICE BRIDGE] Sent shutdown command to Node worker.")
             except Exception as error:
-                print(
+                logger.exception(
                     f"[VOICE BRIDGE] Could not send worker shutdown command: "
                     f"{error!r}"
                 )
@@ -1884,7 +1759,7 @@ class VoiceWorkerBridge:
             try:
                 await asyncio.wait_for(process.wait(), timeout=3.0)
             except TimeoutError:
-                print(
+                logger.info(
                     "[VOICE BRIDGE] Node worker did not exit after shutdown "
                     "command; terminating it."
                 )
@@ -1893,7 +1768,7 @@ class VoiceWorkerBridge:
                 try:
                     await asyncio.wait_for(process.wait(), timeout=3.0)
                 except TimeoutError:
-                    print(
+                    logger.info(
                         "[VOICE BRIDGE] Node worker did not terminate; "
                         "killing it."
                     )
@@ -1932,10 +1807,10 @@ class VoiceWorkerBridge:
             except (TimeoutError, asyncio.CancelledError):
                 pass
 
-        print("[VOICE BRIDGE] Node voice worker shutdown complete.")
+        logger.info("[VOICE BRIDGE] Node voice worker shutdown complete.")
 
     async def join(self, guild_id: int, channel_id: int) -> None:
-        print(
+        logger.info(
             f"[VOICE BRIDGE] Join requested for guild {guild_id}, "
             f"channel {channel_id}."
         )
@@ -1953,7 +1828,7 @@ class VoiceWorkerBridge:
                 "channel_id": str(channel_id),
             })
 
-            print(
+            logger.info(
                 f"[VOICE BRIDGE] Join command sent for guild {guild_id}, "
                 f"channel {channel_id}."
             )
@@ -1964,7 +1839,7 @@ class VoiceWorkerBridge:
             )
 
         except Exception as error:
-            print(
+            logger.exception(
                 f"[VOICE BRIDGE ERROR] Join failed for guild {guild_id}, "
                 f"channel {channel_id}: {error!r}"
             )
@@ -1977,13 +1852,13 @@ class VoiceWorkerBridge:
             return
 
         if self.writer is None or not self.worker_ready.is_set():
-            print(
+            logger.info(
                 f"[VOICE BRIDGE] Leave requested for guild {guild_id}, "
                 "but the worker is not connected; nothing to send."
             )
             return
 
-        print(f"[VOICE BRIDGE] Sending leave command for guild {guild_id}.")
+        logger.info(f"[VOICE BRIDGE] Sending leave command for guild {guild_id}.")
 
         try:
             await self.send({
@@ -1991,7 +1866,7 @@ class VoiceWorkerBridge:
                 "guild_id": str(guild_id),
             })
         except Exception as error:
-            print(
+            logger.exception(
                 f"[VOICE BRIDGE ERROR] Failed to send leave for guild "
                 f"{guild_id}: {error!r}"
             )
@@ -2015,7 +1890,7 @@ class VoiceWorkerBridge:
         peer = writer.get_extra_info("peername")
 
         if self._stopping:
-            print(
+            logger.info(
                 f"[VOICE BRIDGE] Rejecting worker connection from {peer} "
                 "because shutdown is in progress."
             )
@@ -2024,7 +1899,7 @@ class VoiceWorkerBridge:
             return
 
         if self.writer is not None:
-            print(
+            logger.info(
                 f"[VOICE BRIDGE] Rejecting duplicate Node worker "
                 f"connection from {peer}."
             )
@@ -2036,25 +1911,36 @@ class VoiceWorkerBridge:
         self.writer = writer
         self.connected.set()
 
-        print(
+        logger.info(
             f"[VOICE BRIDGE] Node worker connected to Python"
             f"{f' from {peer}' if peer else ''}."
         )
 
         try:
             while True:
-                line = await reader.readline()
+                try:
+                    line = await reader.readuntil(b"\n")
+                except asyncio.LimitOverrunError:
+                    logger.warning("Dropping oversized voice-worker message")
+                    break
 
                 if not line:
-                    print(
+                    logger.info(
                         "[VOICE BRIDGE] Node worker bridge socket reached EOF."
                     )
                     break
 
+                if len(line) > MAX_WORKER_MESSAGE_BYTES:
+                    logger.warning(
+                        "Dropping voice-worker message larger than %d bytes",
+                        MAX_WORKER_MESSAGE_BYTES,
+                    )
+                    continue
+
                 try:
                     message = json.loads(line)
                 except json.JSONDecodeError as error:
-                    print(
+                    logger.info(
                         f"[VOICE BRIDGE ERROR] Invalid worker message: {error}"
                     )
                     continue
@@ -2064,7 +1950,7 @@ class VoiceWorkerBridge:
         except asyncio.CancelledError:
             raise
         except Exception as error:
-            print(
+            logger.exception(
                 f"[VOICE BRIDGE ERROR] Worker connection error: {error!r}"
             )
         finally:
@@ -2081,11 +1967,11 @@ class VoiceWorkerBridge:
                     )
 
             if self._stopping:
-                print(
+                logger.info(
                     "[VOICE BRIDGE] Node worker disconnected during shutdown."
                 )
             else:
-                print(
+                logger.info(
                     "[VOICE BRIDGE ERROR] Node worker disconnected from "
                     "Python unexpectedly."
                 )
@@ -2096,13 +1982,13 @@ class VoiceWorkerBridge:
                     self.worker_process is not None
                     and self.worker_process.returncode is None
                 ):
-                    print(
+                    logger.info(
                         f"[VOICE BRIDGE] Node worker process is still running "
                         f"(PID {self.worker_process.pid}); waiting for it to "
                         "reconnect."
                     )
                 else:
-                    print(
+                    logger.info(
                         "[VOICE BRIDGE] Node worker process is not running; "
                         "automatic restart will be attempted."
                     )
@@ -2115,14 +2001,14 @@ class VoiceWorkerBridge:
             self.worker_ready.set()
 
             if was_ready:
-                print("[VOICE BRIDGE] Node worker reported ready again.")
+                logger.info("[VOICE BRIDGE] Node worker reported ready again.")
             else:
-                print("[VOICE BRIDGE] Node worker reported ready.")
+                logger.info("[VOICE BRIDGE] Node worker reported ready.")
 
             return
 
         if message_type == "log":
-            print(f"[VOICE WORKER] {message.get('message', '')}")
+            logger.info(f"[VOICE WORKER] {message.get('message', '')}")
             return
 
         if message_type == "joined":
@@ -2132,14 +2018,14 @@ class VoiceWorkerBridge:
             if future is not None and not future.done():
                 future.set_result(True)
 
-            print(
+            logger.info(
                 f"[VOICE] Worker joined channel {message.get('channel_id')} "
                 f"in guild {guild_id}."
             )
             return
 
         if message_type == "left":
-            print(
+            logger.info(
                 f"[VOICE] Worker left voice in guild "
                 f"{message.get('guild_id')}."
             )
@@ -2152,7 +2038,7 @@ class VoiceWorkerBridge:
                 message.get("message", "Voice join failed.")
             )
 
-            print(
+            logger.info(
                 f"[VOICE WORKER ERROR] Join error for guild {guild_id}: "
                 f"{error}"
             )
@@ -2167,13 +2053,13 @@ class VoiceWorkerBridge:
             return
 
         if message_type == "voice_error":
-            print(
+            logger.info(
                 f"[VOICE WORKER ERROR] Guild {message.get('guild_id')}: "
                 f"{message.get('message', 'Unknown voice error')}"
             )
             return
 
-        print(
+        logger.info(
             f"[VOICE BRIDGE] Unknown worker message type: "
             f"{message_type!r}"
         )
@@ -2187,7 +2073,16 @@ class VoiceWorkerBridge:
             return
 
         member_key = (guild_id, user_id)
-        member = self.member_cache.get(member_key)
+        cached = self.member_cache.get(member_key)
+        now = time.monotonic()
+        member = None
+
+        if cached is not None:
+            cached_member, cached_at = cached
+            if now - cached_at <= MEMBER_CACHE_TTL_SECONDS:
+                member = cached_member
+            else:
+                self.member_cache.pop(member_key, None)
 
         if member is None:
             guild = self.bot.get_guild(guild_id)
@@ -2203,8 +2098,8 @@ class VoiceWorkerBridge:
                 except discord.HTTPException:
                     return
 
-            self.member_cache[member_key] = member
-            print(
+            self.member_cache[member_key] = (member, now)
+            logger.info(
                 f"[VOICE] First PCM packet received from "
                 f"{member} ({member.id}) via Node worker."
             )
@@ -2212,6 +2107,15 @@ class VoiceWorkerBridge:
         try:
             pcm = base64.b64decode(message["pcm"], validate=True)
         except (ValueError, TypeError):
+            return
+
+        if len(pcm) > MAX_PCM_PACKET_BYTES:
+            logger.warning(
+                "Dropping oversized PCM packet for guild=%s user=%s bytes=%s",
+                guild_id,
+                user_id,
+                len(pcm),
+            )
             return
 
         session.receive_pcm(member, pcm)
@@ -2230,7 +2134,7 @@ class VoiceWorkerBridge:
             if not line:
                 break
 
-            print(
+            logger.info(
                 f"[{label}] "
                 f"{line.decode('utf-8', errors='replace').rstrip()}"
             )
@@ -2483,7 +2387,7 @@ class TranslationBot(commands.Bot):
         apply_command_localizations(self.tree)
 
         synced_commands = await self.tree.sync()
-        print(
+        logger.info(
             f"[COMMANDS] Synced {len(synced_commands)} global slash command(s)."
         )
 
@@ -2526,33 +2430,17 @@ async def get_session(
 
 @bot.event
 async def on_ready() -> None:
-    print(f"Logged in as {bot.user} ({bot.user.id})")
-    print("------")
+    logger.info(f"Logged in as {bot.user} ({bot.user.id})")
+    logger.info("------")
 
 
 
 def localized_balance(interaction, available, trial, paid) -> str:
-    labels = {
-        "en":("Available","Free trial","Purchased","credits"),"es":("Disponibles","Prueba gratuita","Comprados","créditos"),
-        "pt":("Disponíveis","Teste grátis","Comprados","créditos"),"fr":("Disponibles","Essai gratuit","Achetés","crédits"),
-        "de":("Verfügbar","Kostenlose Test-Credits","Gekauft","Credits"),"ja":("利用可能","無料トライアル","購入済み","クレジット"),
-        "ko":("사용 가능","무료 체험","구매","크레딧"),"zh":("可用","免费试用","已购买","点数"),
-        "ru":("Доступно","Пробные","Куплено","кредитов"),"ar":("المتاح","التجريبي المجاني","المشترى","رصيد"),
-        "hi":("उपलब्ध","मुफ्त ट्रायल","खरीदे गए","क्रेडिट"),"id":("Tersedia","Uji coba gratis","Dibeli","kredit"),
-    }
-    l = labels[ui_language_from_locale(interaction.locale)]
+    l = BALANCE_LABELS[ui_language_from_locale(interaction.locale)]
     return f"**{l[0]}:** {format_credits(available)} {l[3]}\n**{l[1]}:** {format_credits(trial)} {l[3]}\n**{l[2]}:** {format_credits(paid)} {l[3]}\n*(100 {l[3]} = $1.00 USD)*"
 
 def localized_usage(interaction, state) -> str:
-    labels = {
-        "en":("Total API usage","Transcription","Translation","Total purchased","credits"),"es":("Uso total de API","Transcripción","Traducción","Total comprado","créditos"),
-        "pt":("Uso total da API","Transcrição","Tradução","Total comprado","créditos"),"fr":("Utilisation totale de l'API","Transcription","Traduction","Total acheté","crédits"),
-        "de":("Gesamte API-Nutzung","Transkription","Übersetzung","Insgesamt gekauft","Credits"),"ja":("API総使用量","文字起こし","翻訳","購入総量","クレジット"),
-        "ko":("전체 API 사용량","받아쓰기","번역","총 구매","크레딧"),"zh":("API 总用量","转录","翻译","购买总量","点数"),
-        "ru":("Общее использование API","Транскрипция","Перевод","Всего куплено","кредитов"),"ar":("إجمالي استخدام API","النسخ","الترجمة","إجمالي المشتريات","رصيد"),
-        "hi":("कुल API उपयोग","ट्रांसक्रिप्शन","अनुवाद","कुल खरीदे गए","क्रेडिट"),"id":("Total penggunaan API","Transkripsi","Terjemahan","Total dibeli","kredit"),
-    }
-    l = labels[ui_language_from_locale(interaction.locale)]
+    l = USAGE_LABELS[ui_language_from_locale(interaction.locale)]
     vals = [int(state["total_used_microusd"]), int(state["transcription_used_microusd"]), int(state["translation_used_microusd"]), int(state["total_purchased_microusd"])]
     return "\n".join([f"**{l[i]}:** {format_credits(vals[i])} {l[4]}" for i in range(4)]) + f"\n*(100 {l[4]} = $1.00 USD)*"
 
@@ -2607,15 +2495,11 @@ class TranslationCommands(commands.Cog):
             )
             return
 
-        try:
-            await sync_kofi_topups(interaction.guild_id)
-        except Exception as error:
-            print(
-                f"[KOFI] Could not sync top-ups before /join in guild "
-                f"{interaction.guild_id}: {error!r}"
-            )
+        await sync_kofi_topups_safely(interaction.guild_id, "join")
 
-        if not has_available_credit(interaction.guild_id):
+        if not await asyncio.to_thread(
+            has_available_credit, interaction.guild_id
+        ):
             message_key = (
                 "no_credit"
                 if has_ever_purchased_credit(interaction.guild_id)
@@ -2629,8 +2513,8 @@ class TranslationCommands(commands.Cog):
             return
 
         if languages is None or not languages.strip():
-            requested_languages = get_default_languages(
-                interaction.guild_id
+            requested_languages = await asyncio.to_thread(
+                get_default_languages, interaction.guild_id
             )
 
             if not requested_languages:
@@ -2682,7 +2566,7 @@ class TranslationCommands(commands.Cog):
 
                 raise
 
-            print(
+            logger.info(
                 f"[VOICE] Translation session active in {voice_channel.name} "
                 f"({voice_channel.id})."
             )
@@ -2698,8 +2582,8 @@ class TranslationCommands(commands.Cog):
                 languages=f"`{languages_text}`",
             )
 
-            show_trial_notice = should_show_trial_notice(
-                interaction.guild_id
+            show_trial_notice = await asyncio.to_thread(
+                should_show_trial_notice, interaction.guild_id
             )
 
             if show_trial_notice:
@@ -2728,7 +2612,7 @@ class TranslationCommands(commands.Cog):
                 except discord.HTTPException as error:
                     # If Discord cannot complete the lookup, avoid incorrectly
                     # advertising Voicely Text as missing.
-                    print(
+                    logger.info(
                         f"[VOICE] Could not verify whether Voicely Text is "
                         f"installed in guild {interaction.guild_id}: {error!r}"
                     )
@@ -2743,10 +2627,12 @@ class TranslationCommands(commands.Cog):
             )
 
             if show_trial_notice:
-                mark_trial_notice_shown(interaction.guild_id)
+                await asyncio.to_thread(
+                    mark_trial_notice_shown, interaction.guild_id
+                )
 
         except Exception as error:
-            print(
+            logger.exception(
                 f"[VOICE COMMAND ERROR] /join failed in guild "
                 f"{interaction.guild_id}, channel {voice_channel.id}: "
                 f"{error!r}"
@@ -2926,7 +2812,9 @@ class TranslationCommands(commands.Cog):
             )
             return
 
-        code = get_or_create_topup_code(interaction.guild_id)
+        code = await asyncio.to_thread(
+            get_or_create_topup_code, interaction.guild_id
+        )
 
         if not KOFI_WORKER_URL or not KOFI_BOT_API_SECRET:
             await interaction.response.send_message(
@@ -2939,7 +2827,7 @@ class TranslationCommands(commands.Cog):
             await register_topup_code(interaction.guild_id, code)
             await sync_kofi_topups(interaction.guild_id)
         except Exception as error:
-            print(
+            logger.exception(
                 f"[KOFI] /topup registration/sync failed for guild "
                 f"{interaction.guild_id}: {error!r}"
             )
@@ -2991,15 +2879,11 @@ class TranslationCommands(commands.Cog):
             )
             return
 
-        try:
-            await sync_kofi_topups(interaction.guild_id)
-        except Exception as error:
-            print(
-                f"[KOFI] /balance sync failed for guild "
-                f"{interaction.guild_id}: {error!r}"
-            )
+        await sync_kofi_topups_safely(interaction.guild_id, "balance")
 
-        state = get_credit_state(interaction.guild_id)
+        state = await asyncio.to_thread(
+            get_credit_state, interaction.guild_id
+        )
         trial = int(state["trial_balance_microusd"])
         paid = int(state["paid_balance_microusd"])
         available = max(0, trial + paid)
@@ -3024,15 +2908,11 @@ class TranslationCommands(commands.Cog):
             )
             return
 
-        try:
-            await sync_kofi_topups(interaction.guild_id)
-        except Exception as error:
-            print(
-                f"[KOFI] /usage sync failed for guild "
-                f"{interaction.guild_id}: {error!r}"
-            )
+        await sync_kofi_topups_safely(interaction.guild_id, "usage")
 
-        state = get_credit_state(interaction.guild_id)
+        state = await asyncio.to_thread(
+            get_credit_state, interaction.guild_id
+        )
 
         await interaction.response.send_message(
             localized_usage(interaction, state),
@@ -3068,7 +2948,8 @@ class TranslationCommands(commands.Cog):
             )
             return
 
-        set_default_languages(
+        await asyncio.to_thread(
+            set_default_languages,
             interaction.guild_id,
             requested_languages,
         )
@@ -3102,7 +2983,8 @@ class TranslationCommands(commands.Cog):
             )
             return
 
-        set_idle_timeout_seconds(
+        await asyncio.to_thread(
+            set_idle_timeout_seconds,
             interaction.guild_id,
             int(seconds),
         )
@@ -3157,7 +3039,7 @@ async def on_voice_state_update(
 
     if bot.user is not None and member.id == bot.user.id:
         if before.channel is not None and after.channel is None:
-            print(
+            logger.info(
                 f"[VOICE ERROR] Bot was disconnected from voice in guild "
                 f"{member.guild.id} ({member.guild.name}); previous channel="
                 f"{before.channel.id} ({before.channel.name})."
@@ -3172,7 +3054,7 @@ async def on_voice_state_update(
                 if session.buffer_task:
                     session.buffer_task.cancel()
 
-                print(
+                logger.info(
                     f"[VOICE] Translation session for guild {guild_id} "
                     "was cleaned up after the unexpected voice disconnect."
                 )
@@ -3206,3 +3088,6 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+
+
